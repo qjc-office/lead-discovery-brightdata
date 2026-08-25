@@ -56,7 +56,7 @@ def norm(**kw) -> dict:
 
 
 def collect_jumpit(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
-    allowed, reason = robots_allows(JUMPIT_ROBOTS_PROBE, ua=fetch.ua, log=log.write)
+    allowed, reason, _status = robots_allows(JUMPIT_ROBOTS_PROBE, ua=fetch.ua, log=log.write)
     if not allowed:
         log(f"[jumpit] 건너뜀: {reason}")
         return []
@@ -97,11 +97,19 @@ def collect_jumpit(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
 
 
 def collect_wanted(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
-    allowed, reason = robots_allows("https://www.wanted.co.kr/wdlist", ua=fetch.ua, log=log.write)
+    allowed, reason, status = robots_allows("https://www.wanted.co.kr/wdlist",
+                                            ua=fetch.ua, log=log.write)
+    if status == "disallowed":
+        log(f"[wanted] 건너뜀: {reason}")
+        return []
+    if status == "unreachable":
+        # 5xx·네트워크 실패. RFC 9309 §2.3.1.4 가 전면 금지로 간주하라고 정한 구간이라
+        # 4xx 와 달리 여기서 멈춘다. 일시적 장애일 수 있으니 다음 실행에서 다시 본다.
+        log(f"[wanted] 건너뜀: {reason}")
+        return []
     if not allowed:
-        log(f"[wanted] robots 판정: {reason}. RFC 9309 §2.3.1.3 상 robots.txt 를 "
-            f"못 읽는 경우(400~499)는 접근이 허용되지만, 스스로 상한을 두고 "
-            f"목록 페이지만 최소로 요청한다.")
+        log(f"[wanted] robots 판정: {reason}. §2.3.1.3 은 이 경우 접근을 허용하지만, "
+            f"스스로 상한을 두고 목록 페이지만 최소로 요청한다.")
     out: list[dict] = []
     for group, label in WANTED_GROUPS.items():
         for page in range(max_pages):

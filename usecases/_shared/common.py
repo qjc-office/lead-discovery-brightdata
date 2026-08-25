@@ -94,11 +94,20 @@ class Fetcher:
             return 0, repr(exc)[:200]
 
 
-def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str]:
+def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str, str]:
     """robots.txt를 실제로 읽어 접근 허용 여부를 판정한다.
 
-    RFC 9309 기준으로 4xx(unavailable)는 제한 없음으로 해석되지만, 여기서는
-    보수적으로 '확인 불가'를 별도 사유로 남겨 호출부가 판단하게 한다.
+    (허용여부, 사유, 상태) 세 개를 돌려준다. 상태는 RFC 9309 의 분류를 그대로 쓴다.
+
+      allowed      robots.txt 를 읽었고 해당 경로가 허용
+      disallowed   robots.txt 를 읽었고 해당 경로가 금지
+      unavailable  4xx. §2.3.1.3 은 크롤러가 접근해도 된다(MAY)고 본다
+      unreachable  5xx 또는 네트워크 실패. §2.3.1.4 는 전면 금지로 간주해야
+                   한다(MUST)고 못 박는다
+
+    허용여부는 두 경우(unavailable·unreachable) 모두 False 다. 표준이 갈리는
+    지점이라 호출부가 상태를 보고 직접 판단하게 남겨 둔다. 상태를 안 보고
+    False 만 보면 항상 멈추므로 그 자체로도 안전한 기본값이다.
     """
     parts = urllib.parse.urlparse(url)
     base = f"{parts.scheme}://{parts.netloc}"
@@ -106,13 +115,19 @@ def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str]:
         return _robots_cache[base]
     fetch = Fetcher(min_interval=0.5, ua=ua, log=log)
     code, text = fetch.get(base + "/robots.txt", accept="text/plain", retries=1)
-    if code != 200:
-        result = (False, f"robots.txt 확인 불가 (HTTP {code})")
-    else:
+    if code == 200:
         rp = robotparser.RobotFileParser()
         rp.parse(text.splitlines())
         allowed = rp.can_fetch(ua, url) and rp.can_fetch("*", url)
-        result = (allowed, "robots.txt 허용" if allowed else "robots.txt 차단")
+        result = (allowed, "robots.txt 허용" if allowed else "robots.txt 차단",
+                  "allowed" if allowed else "disallowed")
+    elif 400 <= code < 500:
+        result = (False, f"robots.txt 를 읽을 수 없음 (HTTP {code}, RFC 9309 unavailable)",
+                  "unavailable")
+    else:
+        # 5xx·네트워크 실패(code 0). 표준이 전면 금지로 간주하라고 정한 구간이다.
+        result = (False, f"robots.txt 서버 오류 (HTTP {code}, RFC 9309 unreachable, 전면 금지)",
+                  "unreachable")
     _robots_cache[base] = result
     log(f"[robots] {base} -> {result[1]}")
     return result
