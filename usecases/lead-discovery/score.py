@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "_shared"))
 
 from common import RunLog, read_json, write_csv, stamp  # noqa: E402
+from taxonomy import NON_TECH_BUCKETS, NEGATIVE_BUCKETS  # noqa: E402
 
 # 규모별 담당 분기. 조직마다 다르니 본인 기준으로 바꿔 쓰세요.
 # 기준선 위아래로 다른 사람에게 붙인다는 뼈대만 예시로 남겨 둔 값입니다.
@@ -27,7 +28,6 @@ OWNER_SPLIT_HEADCOUNT = 50
 OWNER_ABOVE = "담당 A"
 OWNER_BELOW = "담당 B"
 OWNER_UNKNOWN = "확인 후 배정"
-from taxonomy import NON_TECH_BUCKETS, NEGATIVE_BUCKETS  # noqa: E402
 
 # 배점. 신호가 있으면 기본 점수를 주고, 신호가 여러 개면 상한까지 가산한다.
 # 단순 유무만 보면 "AI 디자이너 1명 뽑는 곳"과 "데이터 조직을 통째로 만드는 곳"이
