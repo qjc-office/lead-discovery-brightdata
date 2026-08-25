@@ -29,11 +29,14 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "_shared"))
 sys.path.insert(0, str(ROOT.parent.parent))  # 레포 루트의 bd_client.py 재사용
 
-from common import Fetcher, RunLog, BROWSER_UA, robots_allows, write_json, stamp, now_iso  # noqa: E402
+from common import Fetcher, RunLog, robots_allows, write_json, stamp, now_iso  # noqa: E402
 
 JUMPIT_LIST = "https://api.jumpit.co.kr/api/positions?sort=reg_dt&highlight=false&page={page}"
-JUMPIT_ROBOTS_PROBE = "https://jumpit.saramin.co.kr/positions"
-JUMPIT_VIEW = "https://jumpit.saramin.co.kr/position/{pid}"
+JUMPIT_VIEW = "https://jumpit.saramin.co.kr/position/{pid}"  # 결과 CSV 에 넣는 링크. 요청하지 않는다
+
+# robots 를 못 읽어 §2.3.1.3 으로 진행할 때 스스로 거는 페이지 상한.
+# "최소한만 요청한다"고 문서에 적어 둔 것을 코드로도 지킨다.
+UNVERIFIED_PAGE_CAP = 3
 
 WANTED_LIST = (
     "https://www.wanted.co.kr/api/chaos/navigation/v1/results"
@@ -55,10 +58,32 @@ def norm(**kw) -> dict:
     return base
 
 
+def robots_gate(url: str, fetch: Fetcher, log: RunLog, tag: str,
+                max_pages: int) -> tuple[bool, int]:
+    """실제로 요청할 URL 로 robots 를 판정하고 (진행할지, 페이지 상한) 을 정한다.
+
+    판정 대상은 반드시 **요청할 URL 그 자체**여야 한다. 목록 페이지로 판정하고
+    API 로 요청하면 authority 나 경로가 어긋나 게이트가 무의미해진다.
+
+    disallowed·unreachable 이면 멈춘다. unavailable(4xx) 은 §2.3.1.3 이 접근을
+    허용하는 구간이라 진행하되, 규칙을 확인하지 못한 채 가는 것이므로 페이지 수를
+    스스로 줄인다.
+    """
+    allowed, reason, status = robots_allows(url, ua=fetch.ua, log=log.write)
+    if status in ("disallowed", "unreachable"):
+        log(f"[{tag}] 건너뜀: {reason}")
+        return False, 0
+    if status == "unavailable":
+        capped = min(max_pages, UNVERIFIED_PAGE_CAP)
+        log(f"[{tag}] {reason}. §2.3.1.3 은 이 경우 접근을 허용하지만, "
+            f"규칙을 확인하지 못했으므로 {capped}페이지로 줄인다.")
+        return True, capped
+    return True, max_pages
+
+
 def collect_jumpit(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
-    allowed, reason, _status = robots_allows(JUMPIT_ROBOTS_PROBE, ua=fetch.ua, log=log.write)
-    if not allowed:
-        log(f"[jumpit] 건너뜀: {reason}")
+    go, max_pages = robots_gate(JUMPIT_LIST.format(page=1), fetch, log, "jumpit", max_pages)
+    if not go:
         return []
     out: list[dict] = []
     seen: set[str] = set()
@@ -97,19 +122,10 @@ def collect_jumpit(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
 
 
 def collect_wanted(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
-    allowed, reason, status = robots_allows("https://www.wanted.co.kr/wdlist",
-                                            ua=fetch.ua, log=log.write)
-    if status == "disallowed":
-        log(f"[wanted] 건너뜀: {reason}")
+    first = WANTED_LIST.format(group=next(iter(WANTED_GROUPS)), offset=0)
+    go, max_pages = robots_gate(first, fetch, log, "wanted", max_pages)
+    if not go:
         return []
-    if status == "unreachable":
-        # 5xx·네트워크 실패. RFC 9309 §2.3.1.4 가 전면 금지로 간주하라고 정한 구간이라
-        # 4xx 와 달리 여기서 멈춘다. 일시적 장애일 수 있으니 다음 실행에서 다시 본다.
-        log(f"[wanted] 건너뜀: {reason}")
-        return []
-    if not allowed:
-        log(f"[wanted] robots 판정: {reason}. §2.3.1.3 은 이 경우 접근을 허용하지만, "
-            f"스스로 상한을 두고 목록 페이지만 최소로 요청한다.")
     out: list[dict] = []
     for group, label in WANTED_GROUPS.items():
         for page in range(max_pages):
@@ -192,13 +208,15 @@ def main(argv: list[str]) -> int:
     log = RunLog(out_dir / "run-log.txt")
     log(f"[collect] source={args.source} max_pages={args.max_pages}")
     fetch = Fetcher(min_interval=1.2)
-    browser = Fetcher(min_interval=1.5, ua=BROWSER_UA)
+    # 원티드도 같은 정직한 UA 로 간다. 브라우저 UA 를 쓰던 자리였는데, 실측해 보니
+    # 이 API 는 QJC-research UA 로도 200 을 준다. 필요가 없으면 사칭하지 않는다.
+    slow = Fetcher(min_interval=1.5)
 
     rows: list[dict] = []
     if args.source in ("all", "jumpit"):
         rows += collect_jumpit(fetch, log, args.max_pages)
     if args.source in ("all", "wanted"):
-        rows += collect_wanted(browser, log, args.wanted_pages)
+        rows += collect_wanted(slow, log, args.wanted_pages)
     if args.source in ("all", "bd"):
         rows += collect_bd(log, use_mock=args.mock or args.source == "all")
 

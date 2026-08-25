@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "_shared"))
 
-from common import Fetcher, RunLog, BROWSER_UA, read_json, write_json, stamp  # noqa: E402
+from common import Fetcher, RunLog, read_json, write_json, stamp, robots_allows  # noqa: E402
 from taxonomy import (classify_industry, role_signals, is_ai_native, is_si_vendor,  # noqa: E402
                       ai_tool_signals, extract_headcount)
 
@@ -253,6 +253,21 @@ def fetch_jumpit_detail(fetch: Fetcher, log: RunLog, companies: dict, targets: l
     log(f"[jumpit-detail] 상세 {done}건 확보 (신규 {fetched}건, 캐시 {done-fetched}건)")
 
 
+def enrich_gate(url: str, fetch: Fetcher, log: RunLog, tag: str) -> bool:
+    """보강 단계도 자기가 요청할 URL 로 robots 를 직접 판정한다.
+
+    collect 단계의 판정을 물려받지 않는다. 경로가 다르고 프로세스도 다르다.
+    disallowed·unreachable 이면 그 보강을 통째로 건너뛴다.
+    """
+    _allowed, reason, status = robots_allows(url, ua=fetch.ua, log=log.write)
+    if status in ("disallowed", "unreachable"):
+        log(f"[{tag}] 보강 건너뜀: {reason}")
+        return False
+    if status == "unavailable":
+        log(f"[{tag}] {reason}. §2.3.1.3 상 접근은 허용되나 요청 간격을 지킨다.")
+    return True
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="공고 회사 단위 집계와 공공데이터 보강")
     ap.add_argument("--raw", default="")
@@ -284,9 +299,15 @@ def main(argv: list[str]) -> int:
                                    len(companies[k]["postings"])), reverse=True)
     targets = ranked[:args.max_enrich]
 
-    browser = Fetcher(min_interval=1.0, ua=BROWSER_UA)
-    fetch_company_meta(browser, log, companies, targets)
-    fetch_jumpit_detail(Fetcher(min_interval=1.0), log, companies, targets)
+    # collect 단계에서 판정한 것은 목록 API 다. 여기서 부르는 상세 API 는 경로가
+    # 달라 판정이 승계되지 않고, 애초에 별도 프로세스라 캐시도 넘어오지 않는다.
+    # 그래서 이 단계에서 요청할 URL 로 다시 판정한다.
+    slow = Fetcher(min_interval=1.0)
+    if enrich_gate(WANTED_COMPANY.format(cid=1), slow, log, "wanted-company"):
+        fetch_company_meta(slow, log, companies, targets)
+    detail = Fetcher(min_interval=1.0)
+    if enrich_gate(JUMPIT_DETAIL.format(pid=1), detail, log, "jumpit-detail"):
+        fetch_jumpit_detail(detail, log, companies, targets)
 
     dart_names = load_dart(log)
     api = Fetcher(min_interval=1.5)  # odcloud는 짧은 간격에 503을 돌려준다

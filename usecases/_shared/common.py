@@ -14,7 +14,9 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib import robotparser
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from robots import PARSE_LIMIT_BYTES, RobotsRules, path_of  # noqa: E402
 
 UA = "QJC-research/1.0 (+https://qjc.app)"
 BROWSER_UA = (
@@ -23,7 +25,11 @@ BROWSER_UA = (
 )
 
 _last_call: dict[str, float] = {}
-_robots_cache: dict[str, tuple[bool, str, str]] = {}
+
+# 호스트별로 **파싱한 규칙**을 캐시한다. 판정 결과가 아니다.
+# RFC 9309 §2.4 가 캐시를 허용한 대상은 robots.txt 의 내용이지 판정이 아니고,
+# 판정을 캐시하면 같은 호스트의 다른 경로가 첫 경로의 답을 물려받아 조용히 뚫린다.
+_robots_cache: dict[str, tuple[int, "RobotsRules | None"]] = {}
 
 
 class Fetcher:
@@ -42,7 +48,7 @@ class Fetcher:
         _last_call[host] = time.monotonic()
 
     def get(self, url: str, *, timeout: int = 40, accept: str = "application/json",
-            retries: int = 2) -> tuple[int, str]:
+            retries: int = 2, max_bytes: int | None = None) -> tuple[int, str]:
         host = urllib.parse.urlparse(url).netloc
         last = (0, "")
         for attempt in range(retries + 1):
@@ -52,7 +58,8 @@ class Fetcher:
             )
             try:
                 with urllib.request.urlopen(req, timeout=timeout) as resp:
-                    return resp.status, resp.read().decode("utf-8", "replace")
+                    raw = resp.read(max_bytes) if max_bytes else resp.read()
+                    return resp.status, raw.decode("utf-8", "replace")
             except urllib.error.HTTPError as exc:
                 body = exc.read().decode("utf-8", "replace")[:300]
                 last = (exc.code, body)
@@ -99,11 +106,16 @@ def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str, str]:
 
     (허용여부, 사유, 상태) 세 개를 돌려준다. 상태는 RFC 9309 의 분류를 그대로 쓴다.
 
-      allowed      robots.txt 를 읽었고 해당 경로가 허용
-      disallowed   robots.txt 를 읽었고 해당 경로가 금지
-      unavailable  4xx(429 제외). §2.3.1.3 은 크롤러가 접근해도 된다(MAY)고 본다
+      allowed      robots.txt 를 읽었고 **이 URL 의 경로**가 허용
+      disallowed   robots.txt 를 읽었고 이 URL 의 경로가 금지
+      unavailable  4xx(429 제외)·리다이렉트 소진. §2.3.1.3·§2.3.1.2 는 크롤러가
+                   접근해도 된다(MAY)고 본다
       unreachable  5xx, 429, 네트워크 실패. §2.3.1.4 는 전면 금지로 간주해야
                    한다(MUST)고 못 박는다
+
+    **판정 대상은 넘긴 URL 그 자체다.** robots.txt 는 authority 단위로 존재하지만
+    Allow/Disallow 는 경로 단위다(§2.2.2). 목록 페이지로 판정하고 API 로 요청하는
+    식으로 대상이 어긋나면 게이트가 있으나 마나다. 실제로 요청할 URL 을 넘겨라.
 
     429(Too Many Requests)는 RFC 본문이 따로 규정하지 않는다. §2.3.1.3 이 4xx 를
     "예를 들어(for example)" 로만 들기 때문에 해석의 여지가 있는데, 여기서는
@@ -124,28 +136,35 @@ def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str, str]:
     """
     parts = urllib.parse.urlparse(url)
     base = f"{parts.scheme}://{parts.netloc}"
+
+    # 캐시에는 파싱한 규칙만 담는다. 판정은 매번 이 URL 의 경로로 새로 한다.
     if base in _robots_cache:
-        return _robots_cache[base]
-    fetch = Fetcher(min_interval=0.5, ua=ua, log=log)
-    code, text = fetch.get(base + "/robots.txt", accept="text/plain", retries=1)
-    if code == 200:
-        rp = robotparser.RobotFileParser()
-        rp.parse(text.splitlines())
-        allowed = rp.can_fetch(ua, url) and rp.can_fetch("*", url)
-        result = (allowed, "robots.txt 허용" if allowed else "robots.txt 차단",
-                  "allowed" if allowed else "disallowed")
+        code, rules = _robots_cache[base]
+    else:
+        fetch = Fetcher(min_interval=0.5, ua=ua, log=log)
+        code, text = fetch.get(base + "/robots.txt", accept="text/plain", retries=1,
+                               max_bytes=PARSE_LIMIT_BYTES)
+        rules = RobotsRules(text, ua) if 200 <= code < 300 else None
+        _robots_cache[base] = (code, rules)
+
+    if rules is not None:
+        # 2xx 는 성공 다운로드다(§2.3.1.1). 본문이 비어 규칙이 0개면 그대로 허용이 된다.
+        allow, why = rules.decide(path_of(url))
+        result = (allow, f"robots.txt {'허용' if allow else '차단'} ({why})",
+                  "allowed" if allow else "disallowed")
     elif code == 429:
         # "그만 보내라"는 신호다. 4xx 범위이지만 unavailable 로 보면 정반대로 행동하게 된다.
         result = (False, "robots.txt 요청이 속도 제한에 걸림 (HTTP 429, 전면 금지로 간주)",
                   "unreachable")
-    elif 400 <= code < 500:
+    elif 300 <= code < 500:
+        # 4xx 는 §2.3.1.3. 3xx 가 여기까지 왔다는 건 리다이렉트 상한을 넘겼다는 뜻이고
+        # §2.3.1.2 도 그 경우를 unavailable 로 보라고 한다.
         result = (False, f"robots.txt 를 읽을 수 없음 (HTTP {code}, RFC 9309 unavailable)",
                   "unavailable")
     else:
         # 5xx·네트워크 실패(code 0). 표준이 전면 금지로 간주하라고 정한 구간이다.
         result = (False, f"robots.txt 서버 오류 (HTTP {code}, RFC 9309 unreachable, 전면 금지)",
                   "unreachable")
-    _robots_cache[base] = result
     log(f"[robots] {base} -> {result[1]}")
     return result
 

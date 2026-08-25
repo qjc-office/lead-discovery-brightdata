@@ -215,7 +215,8 @@ Amazon 쪽은 `dataset_id`가 채워져 있어 키만 넣으면 바로 돕니다
 
 ## 필요한 것 / 필요 없는 것
 
-- Python 3.10 이상. `pip install`이 필요한 패키지가 없습니다(표준 라이브러리만 사용). 그래서 `requirements.txt`가 따로 없습니다
+- Python 3.10 이상. `pip install`이 필요한 패키지가 없습니다(표준 라이브러리만 사용). 그래서 `requirements.txt`가 따로 없습니다. 3.11·3.12·3.13·3.14에서 실행을 확인했습니다
+- robots.txt 판정기는 `usecases/_shared/robots.py`에 직접 구현했습니다. 표준 라이브러리 `urllib.robotparser`는 CPython 3.14에서야 RFC 9309로 재작성돼, 그 이전 버전에서는 `*`·`$`·최장 일치를 무시하고 **막아야 할 경로를 허용해 버립니다**. 대부분의 환경이 그 구간이라 위임하지 않았습니다
 - Bright Data 계정과 API 키 (Level 1을 실제로 돌리거나 `--live`로 전환할 때만 필요, mock 모드는 키 없이 동작)
 - (선택) Slack Incoming Webhook. 알림을 실제로 받고 싶을 때만 필요합니다. 없어도 `--dry-run`으로 페이로드를 확인할 수 있습니다
 

@@ -4,7 +4,8 @@
 Two rules are enforced here, not in the caller:
 
 1. Every host's robots.txt is fetched at run time and parsed. A path is only
-   requested after `RobotsRules.allows(path)` returns True.
+   requested after `RobotsRules.decide(path)` returns allowed. The evaluator
+   lives in `_shared/robots.py` so both usecases judge identically.
 2. Requests to the same process are spaced by `min_interval` seconds.
 
 The User-Agent identifies who is calling and where to complain.
@@ -15,10 +16,15 @@ from __future__ import annotations
 
 import gzip
 import re
+import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "_shared"))
+from robots import RobotsRules, path_of  # noqa: E402,F401  재수출: 기존 호출부 유지
 
 DEFAULT_UA = "QJC-research/1.0 (+https://qjc.app)"
 _last_request_at = 0.0
@@ -69,75 +75,6 @@ def fetch(url: str, user_agent: str = DEFAULT_UA, min_interval: float = 1.5,
         return Fetched(url, None, "", f"URLError {exc.reason}")
     except Exception as exc:  # socket timeouts, decoding, DNS
         return Fetched(url, None, "", f"{type(exc).__name__} {exc}")
-
-
-def _pattern_to_regex(pattern: str) -> re.Pattern:
-    """Translate a robots.txt path pattern ('*' wildcard, '$' end anchor) to a regex."""
-    parts = []
-    for ch in pattern:
-        if ch == "*":
-            parts.append(".*")
-        elif ch == "$":
-            parts.append("$")
-        else:
-            parts.append(re.escape(ch))
-    return re.compile("^" + "".join(parts))
-
-
-class RobotsRules:
-    """Minimal robots.txt evaluator: agent groups, Allow/Disallow, longest match wins."""
-
-    def __init__(self, text: str, user_agent: str) -> None:
-        self.raw = text
-        self.agent_token = user_agent.split("/")[0].lower()
-        self.groups = self._parse(text)
-
-    @staticmethod
-    def _parse(text: str) -> dict[str, list[tuple[bool, str]]]:
-        groups: dict[str, list[tuple[bool, str]]] = {}
-        current: list[str] = []
-        expecting_agent = True
-        for line in text.splitlines():
-            line = line.split("#", 1)[0].strip()
-            if not line or ":" not in line:
-                continue
-            field, _, value = line.partition(":")
-            field = field.strip().lower()
-            value = value.strip()
-            if field == "user-agent":
-                if not expecting_agent:
-                    current = []
-                    expecting_agent = True
-                current.append(value.lower())
-                groups.setdefault(value.lower(), [])
-            elif field in ("allow", "disallow"):
-                expecting_agent = False
-                for agent in current or ["*"]:
-                    groups.setdefault(agent, []).append((field == "allow", value))
-        return groups
-
-    def rules(self) -> list[tuple[bool, str]]:
-        """Rules for our agent token, falling back to the wildcard group."""
-        for name, rules in self.groups.items():
-            if self.agent_token and self.agent_token in name:
-                return rules
-        return self.groups.get("*", [])
-
-    def decide(self, path: str) -> tuple[bool, str]:
-        """Return (allowed, reason). Longest matching pattern wins; ties favour Allow."""
-        best: tuple[int, bool, str] | None = None
-        for allow, pattern in self.rules():
-            if pattern == "":
-                continue  # 'Disallow:' with empty value means allow everything
-            if _pattern_to_regex(pattern).match(path):
-                score = len(pattern)
-                if best is None or score > best[0] or (score == best[0] and allow):
-                    best = (score, allow, pattern)
-        if best is None:
-            return True, "no matching rule (default allow)"
-        allow, pattern = best[1], best[2]
-        verb = "Allow" if allow else "Disallow"
-        return allow, f"{verb}: {pattern}"
 
 
 def load_robots(base_url: str, user_agent: str = DEFAULT_UA,

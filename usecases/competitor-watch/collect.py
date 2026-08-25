@@ -50,21 +50,55 @@ class Logger:
         self.fh.flush()
 
 
-def robots_gate(source: dict, cfg: dict, log: Logger):
-    """robots.txt 를 읽어 RobotsRules 를 만든다. 실패하면 (None, 사유)."""
-    rules, res = fetcher.load_robots(source["base"], cfg["user_agent"],
-                                     cfg["min_request_interval_sec"])
-    if rules is None:
-        log(f"[{source['key']}] robots.txt 읽기 실패 status={res.status} {res.error}")
-        return None, f"robots.txt 응답 실패 (status={res.status})"
-    log(f"[{source['key']}] robots.txt OK ({len(res.body)} bytes) rules={len(rules.rules())}")
-    return rules, ""
+class RobotsGate:
+    """authority 별로 robots.txt 를 따로 읽어 판정한다.
 
+    robots.txt 는 scheme+host+port 단위로 존재한다(RFC 9309 §2.3). 소스 하나에
+    robots 하나를 물려 두면, sitemap 인덱스의 자식이 다른 호스트(예: cdn.<host>)에
+    있을 때 남의 집 규칙으로 판정하게 된다. 그래서 URL 이 들어올 때마다 그 URL 의
+    authority 에 맞는 규칙을 찾는다. 읽은 robots 는 authority 별로 한 번만 받는다.
+    """
 
-def allowed(rules, url: str, source_key: str, log: Logger) -> bool:
-    ok, reason = rules.decide(fetcher.path_of(url))
-    log(f"[{source_key}] robots {'ALLOW' if ok else 'DENY '} {fetcher.path_of(url)}  <- {reason}")
-    return ok
+    def __init__(self, cfg: dict, log: Logger) -> None:
+        self.ua = cfg["user_agent"]
+        self.gap = cfg["min_request_interval_sec"]
+        self.log = log
+        self._cache: dict[str, tuple[object, object]] = {}
+
+    @staticmethod
+    def _authority(url: str) -> str:
+        parts = urllib.parse.urlsplit(url)
+        return f"{parts.scheme}://{parts.netloc}"
+
+    def rules_for(self, url: str, source_key: str):
+        base = self._authority(url)
+        if base not in self._cache:
+            rules, res = fetcher.load_robots(base, self.ua, self.gap)
+            if rules is None:
+                self.log(f"[{source_key}] {base}/robots.txt 읽기 실패 "
+                         f"status={res.status} {res.error}")
+            else:
+                self.log(f"[{source_key}] {base}/robots.txt OK ({len(res.body)} bytes) "
+                         f"rules={len(rules.rules())}")
+            self._cache[base] = (rules, res)
+        return self._cache[base]
+
+    def allows(self, url: str, source_key: str) -> bool:
+        rules, res = self.rules_for(url, source_key)
+        path = fetcher.path_of(url)
+        if rules is None:
+            # 규칙을 못 읽었으면 요청하지 않는다. 이 파이프라인은 fail-closed 다.
+            self.log(f"[{source_key}] robots DENY  {path}  <- robots.txt 확인 불가 "
+                     f"(status={res.status})")
+            return False
+        ok, reason = rules.decide(path)
+        self.log(f"[{source_key}] robots {'ALLOW' if ok else 'DENY '} {path}  <- {reason}")
+        return ok
+
+    def entry_failure(self, url: str, source_key: str) -> str:
+        """진입 경로의 robots 를 못 읽었을 때 blocked-sources.md 에 남길 사유."""
+        rules, res = self.rules_for(url, source_key)
+        return "" if rules is not None else f"robots.txt 응답 실패 (status={res.status})"
 
 
 def _keyword_hit(url: str, watch: list[str], decode: bool) -> bool:
@@ -72,7 +106,7 @@ def _keyword_hit(url: str, watch: list[str], decode: bool) -> bool:
     return any(kw.lower() in haystack.lower() for kw in watch)
 
 
-def discover(source: dict, cfg: dict, rules, log: Logger) -> tuple[list[str], str]:
+def discover(source: dict, cfg: dict, gate: "RobotsGate", log: Logger) -> tuple[list[str], str]:
     """수집 후보 URL 목록. 두 번째 값은 실패 사유(있을 때)."""
     disc = source["discovery"]
     ua, gap = cfg["user_agent"], cfg["min_request_interval_sec"]
@@ -80,7 +114,7 @@ def discover(source: dict, cfg: dict, rules, log: Logger) -> tuple[list[str], st
 
     seeds = [disc["url"]] if disc["type"] in ("sitemap", "sitemap_index") else disc["urls"]
     for seed in seeds:
-        if not allowed(rules, seed, source["key"], log):
+        if not gate.allows(seed, source["key"]):
             return [], f"robots 가 진입 경로를 금지: {fetcher.path_of(seed)}"
         res = fetcher.fetch(seed, ua, gap)
         log(f"[{source['key']}] GET {seed} -> {res.status} {len(res.body)} bytes {res.error}")
@@ -92,6 +126,9 @@ def discover(source: dict, cfg: dict, rules, log: Logger) -> tuple[list[str], st
             picked = children[-disc.get("child_limit", 2):] if disc.get("child_pick") == "last" \
                 else children[:disc.get("child_limit", 2)]
             for child in picked:
+                # 자식 사이트맵은 다른 호스트일 수 있다. 반드시 따로 판정한다.
+                if not gate.allows(child, source["key"]):
+                    continue
                 sub = fetcher.fetch(child, ua, gap)
                 log(f"[{source['key']}] GET {child} -> {sub.status} {len(sub.body)} bytes")
                 if sub.ok:
@@ -122,13 +159,13 @@ def _filter_urls(urls: list[str], disc: dict, cfg: dict) -> list[str]:
     return out
 
 
-def scrape_pages(source: dict, cfg: dict, rules, urls: list[str], log: Logger) -> list[dict]:
+def scrape_pages(source: dict, cfg: dict, gate: "RobotsGate", urls: list[str], log: Logger) -> list[dict]:
     parse = parsers.PARSERS[source["parser"]]
     ctx = {"watch_keywords": cfg["watch_keywords"], "brand": source["brand"]}
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     rows = []
     for url in urls[: source.get("max_pages", 10)]:
-        if not allowed(rules, url, source["key"], log):
+        if not gate.allows(url, source["key"]):
             continue
         res = fetcher.fetch(url, cfg["user_agent"], cfg["min_request_interval_sec"])
         row = parse(url, res.body, ctx) if res.ok else None
@@ -231,20 +268,21 @@ def parse_args(argv):
 def run_source(source: dict, cfg: dict, args, log: Logger) -> tuple[list[dict], dict | None]:
     """소스 1개를 수집한다. 반환은 (행 목록, 차단 기록 or None)."""
     log(f"--- source={source['key']} brand={source['brand']} base={source['base']}")
-    rules, err = robots_gate(source, cfg, log)
+    gate = RobotsGate(cfg, log)
     entry = source["discovery"].get("url") or source["discovery"]["urls"][0]
-    if rules is None:
+    err = gate.entry_failure(entry, source["key"])
+    if err:
         return [], {"brand": source["brand"], "entry": entry, "kind": "fetch-error",
                     "evidence": err, "bd": "robots 재확인 후 판단"}
 
-    urls, block = discover(source, cfg, rules, log)
+    urls, block = discover(source, cfg, gate, log)
     if block:
         return [], {"brand": source["brand"], "entry": entry, "kind": "robots-disallow",
                     "evidence": block,
                     "bd": "robots 가 금지하므로 Bright Data 로도 수집하지 않는다"}
     log(f"[{source['key']}] 후보 URL {len(urls)}개 (상한 {source.get('max_pages', 10)})")
 
-    rows = scrape_pages(source, cfg, rules, urls, log) if urls else []
+    rows = scrape_pages(source, cfg, gate, urls, log) if urls else []
     log(f"[{source['key']}] 실수집 {len(rows)}행")
     if rows:
         return rows, None
