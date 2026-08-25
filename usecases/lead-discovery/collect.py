@@ -3,7 +3,10 @@
 
 소스
   jumpit   점핏 공개 포지션 API. robots.txt에서 /positions 경로가 허용된다.
-  wanted   원티드 공개 채용 API. robots.txt를 CDN이 막고 있어 확인 불가 상태다.
+  wanted   원티드 공개 채용 API. robots.txt 요청이 CDN에서 403으로 끊긴다.
+           RFC 9309 §2.3.1.3 은 이 경우(400~499)를 "unavailable" 로 보고 크롤러가
+           접근해도 된다고 규정하지만, 규정이 허용한다고 마음껏 긁을 이유는 없어서
+           요청 간격을 두고 목록 페이지만 최소로 가져온다.
   bd       Bright Data Web Scraper API 경로. 상위 레포 bd_client.py를 재사용한다.
            키가 없으면 mock 픽스처로 파이프라인만 검증한다.
 
@@ -94,8 +97,9 @@ def collect_jumpit(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
 def collect_wanted(fetch: Fetcher, log: RunLog, max_pages: int) -> list[dict]:
     allowed, reason = robots_allows("https://www.wanted.co.kr/wdlist", ua=fetch.ua, log=log.write)
     if not allowed:
-        log(f"[wanted] robots 판정: {reason}. 공개 API 응답은 정상이나 크롤 정책을 "
-            f"확인할 수 없어 최소 요청만 수행한다.")
+        log(f"[wanted] robots 판정: {reason}. RFC 9309 §2.3.1.3 상 robots.txt 를 "
+            f"못 읽는 경우(400~499)는 접근이 허용되지만, 스스로 상한을 두고 "
+            f"목록 페이지만 최소로 요청한다.")
     out: list[dict] = []
     for group, label in WANTED_GROUPS.items():
         for page in range(max_pages):
