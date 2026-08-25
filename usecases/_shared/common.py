@@ -23,7 +23,7 @@ BROWSER_UA = (
 )
 
 _last_call: dict[str, float] = {}
-_robots_cache: dict[str, tuple[bool, str]] = {}
+_robots_cache: dict[str, tuple[bool, str, str]] = {}
 
 
 class Fetcher:
@@ -101,9 +101,22 @@ def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str, str]:
 
       allowed      robots.txt 를 읽었고 해당 경로가 허용
       disallowed   robots.txt 를 읽었고 해당 경로가 금지
-      unavailable  4xx. §2.3.1.3 은 크롤러가 접근해도 된다(MAY)고 본다
-      unreachable  5xx 또는 네트워크 실패. §2.3.1.4 는 전면 금지로 간주해야
+      unavailable  4xx(429 제외). §2.3.1.3 은 크롤러가 접근해도 된다(MAY)고 본다
+      unreachable  5xx, 429, 네트워크 실패. §2.3.1.4 는 전면 금지로 간주해야
                    한다(MUST)고 못 박는다
+
+    429(Too Many Requests)는 RFC 본문이 따로 규정하지 않는다. §2.3.1.3 이 4xx 를
+    "예를 들어(for example)" 로만 들기 때문에 해석의 여지가 있는데, 여기서는
+    unreachable 로 본다. 근거 둘.
+
+      * 429 는 "파일이 없다"가 아니라 "지금은 그만 보내라"는 뜻이다. 그걸
+        "규칙이 없으니 마음껏 긁어도 된다"로 읽으면 정확히 반대로 행동하게 된다.
+      * 같은 파일 Fetcher.get() 이 이미 429 를 500·502·503 과 함께 재시도 대상으로
+        묶고 있다. 재시도가 소진된 뒤 갑자기 403 과 같은 칸에 넣으면 한 코드베이스가
+        429 를 두 가지로 다루는 셈이 된다.
+
+    5개째 상태를 만들지 않고 unreachable 에 합친 것도 의도다. 상태를 일일이
+    분기하지 않고 unreachable 만 보는 호출부가 자동으로 멈추는 쪽이 안전하다.
 
     허용여부는 두 경우(unavailable·unreachable) 모두 False 다. 표준이 갈리는
     지점이라 호출부가 상태를 보고 직접 판단하게 남겨 둔다. 상태를 안 보고
@@ -121,6 +134,10 @@ def robots_allows(url: str, ua: str = UA, log=print) -> tuple[bool, str, str]:
         allowed = rp.can_fetch(ua, url) and rp.can_fetch("*", url)
         result = (allowed, "robots.txt 허용" if allowed else "robots.txt 차단",
                   "allowed" if allowed else "disallowed")
+    elif code == 429:
+        # "그만 보내라"는 신호다. 4xx 범위이지만 unavailable 로 보면 정반대로 행동하게 된다.
+        result = (False, "robots.txt 요청이 속도 제한에 걸림 (HTTP 429, 전면 금지로 간주)",
+                  "unreachable")
     elif 400 <= code < 500:
         result = (False, f"robots.txt 를 읽을 수 없음 (HTTP {code}, RFC 9309 unavailable)",
                   "unavailable")
