@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to .mcp.json in the project root. Claude Code expands ${VAR} from the environment, so no key is stored in this file. Verify with: claude mcp list",
+  "mcpServers": {
+    "brightdata": {
+      "type": "sse",
+      "url": "https://mcp.brightdata.com/sse?token=${BRIGHTDATA_API_KEY}"
+    },
+    "qjc-monitor": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["mcp_server.py"],
+      "env": {}
+    }
+  }
+}

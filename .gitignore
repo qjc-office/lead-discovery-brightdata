@@ -1,0 +1,23 @@
+# 시크릿은 절대 커밋하지 않는다
+.env
+.env.*
+!.env.example
+.mcp.json
+!.mcp.json.example
+
+# 수집 결과와 캐시는 각자의 것이다
+data/*
+!data/.gitkeep
+results/
+**/results/
+*.snapshot.json
+level1_result.json
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store

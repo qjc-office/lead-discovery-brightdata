@@ -1,0 +1,28 @@
+[
+  {
+    "_mock_fixture": true,
+    "asin": "B0MOCK0001",
+    "title": "Mock 60% Mechanical Keyboard, RGB Hot-Swap",
+    "brand": "SampleGear",
+    "initial_price": "79.99",
+    "final_price": "59.99",
+    "currency": "USD",
+    "rating": "4.5",
+    "reviews_count": "120",
+    "is_available": "true",
+    "url": "https://example.com/mock-product-1"
+  },
+  {
+    "_mock_fixture": true,
+    "asin": "B0MOCK0002",
+    "title": "Mock Wireless Mechanical Keyboard, TKL",
+    "brand": "DemoTech",
+    "initial_price": "129.99",
+    "final_price": "129.99",
+    "currency": "USD",
+    "rating": "4.2",
+    "reviews_count": "45",
+    "is_available": "true",
+    "url": "https://example.com/mock-product-2"
+  }
+]

@@ -1,0 +1,83 @@
+{
+  "_comment": "Monitoring targets. Change 'inputs' to point the same pipeline at your own domain. Look up the dataset_id for the scraper you want in the official Bright Data API reference (see doc_url) and paste it in.",
+  "default_target": "amazon_products",
+  "targets": {
+    "public_job_postings": {
+      "_note": "Shape example for a job-board scraper. mock mode runs without a dataset_id; for --live, put the dataset_id of the job scraper you chose here.",
+      "label": "Public job postings (discover by keyword)",
+      "dataset_id": "REPLACE_WITH_YOUR_JOB_DATASET_ID",
+      "doc_url": "https://docs.brightdata.com/api-reference/scrapers/management-apis/get-scrapers",
+      "mock_key": "public_job_postings",
+      "trigger_params": {
+        "type": "discover_new",
+        "discover_by": "keyword",
+        "include_errors": "true",
+        "limit_per_input": "25"
+      },
+      "inputs": [
+        {
+          "location": "Seoul",
+          "keyword": "\"AI engineer\"",
+          "country": "KR",
+          "time_range": "Past week",
+          "job_type": "Full-time"
+        },
+        {
+          "location": "Seoul",
+          "keyword": "\"data engineer\"",
+          "country": "KR",
+          "time_range": "Past week",
+          "job_type": "Full-time"
+        }
+      ],
+      "id_field": "job_posting_id",
+      "title_field": "job_title",
+      "subtitle_field": "company_name",
+      "url_field": "url",
+      "csv_fields": [
+        "job_posting_id",
+        "job_title",
+        "company_name",
+        "job_location",
+        "job_employment_type",
+        "job_seniority_level",
+        "job_posted_date",
+        "job_num_applicants",
+        "job_base_pay_range",
+        "url"
+      ]
+    },
+    "amazon_products": {
+      "label": "Amazon product listings (discover by keyword)",
+      "dataset_id": "gd_l7q7dkf244hwjntr0",
+      "doc_url": "https://docs.brightdata.com/api-reference/scrapers/e-commerce-apis/amazon-products-discover-by-keyword",
+      "mock_key": "amazon_products",
+      "trigger_params": {
+        "type": "discover_new",
+        "discover_by": "keyword",
+        "include_errors": "false",
+        "limit_per_input": "25"
+      },
+      "inputs": [
+        { "keyword": "mechanical keyboard" }
+      ],
+      "id_field": "asin",
+      "title_field": "title",
+      "subtitle_field": "brand",
+      "url_field": "url",
+      "watch_fields": ["final_price", "is_available", "rating", "reviews_count"],
+      "csv_fields": [
+        "asin",
+        "title",
+        "brand",
+        "initial_price",
+        "final_price",
+        "currency",
+        "rating",
+        "reviews_count",
+        "is_available",
+        "url"
+      ]
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "channel": {
+    "handle": "@qjc_qjc",
+    "url": "https://www.youtube.com/@qjc_qjc/videos"
+  },
+  "keywords": [
+    "클로드 코드",
+    "Claude Code",
+    "AI 코딩",
+    "바이브 코딩",
+    "AI 자동화",
+    "AI 에이전트",
+    "업무 자동화 AI",
+    "n8n",
+    "커서 AI"
+  ],
+  "collection": {
+    "search_results_per_keyword": 30,
+    "enrich_top_n_per_keyword": 14,
+    "competitor_channels_max": 5,
+    "channel_recent_videos": 12,
+    "detail_batch_size": 20,
+    "sleep_between_batches_sec": 1.0
+  },
+  "scoring": {
+    "weights": {
+      "demand": 0.30,
+      "velocity": 0.25,
+      "leverage": 0.20,
+      "freshness": 0.15,
+      "competition": 0.10
+    },
+    "demand_views_ceiling": 300000,
+    "velocity_ceiling_per_day": 4000,
+    "leverage_multiple_ceiling": 3.0,
+    "freshness_window_days": 90,
+    "big_channel_subscribers": 100000,
+    "min_videos_for_topic": 3,
+    "min_enriched_for_topic": 2,
+    "korean_titles_only": true
+  },
+  "phrase_mining": {
+    "enabled": true,
+    "min_token_len": 2,
+    "min_videos_unigram": 6,
+    "min_videos_bigram": 4,
+    "min_distinct_keywords": 2,
+    "unigram_blocklist": ["코드", "기능", "업무", "도구", "사용", "활용", "버전", "모델", "기술", "서비스"],
+    "max_candidates": 60,
+    "dedupe_overlap": 0.6,
+    "predicate_endings": ["는", "고", "서", "며", "면", "다", "요", "죠", "게", "지", "나", "자", "야", "니", "든", "랑", "듯"],
+    "stopwords": [
+      "그리고", "그러나", "하지만", "그래서", "그런데", "이렇게", "그렇게", "저렇게",
+      "이제", "지금", "오늘", "어제", "내일", "요즘", "최근", "앞으로", "이번", "다음", "지난",
+      "정말", "진짜", "완전", "그냥", "바로", "아주", "매우", "너무", "조금", "많이",
+      "함께", "다시", "이미", "아직", "계속", "항상", "절대", "역시", "결국", "드디어",
+      "심지어", "오히려", "특히", "무조건", "제대로", "확실히", "실제로", "모두", "전부",
+      "직접", "혼자", "가장", "제일", "거의", "겨우", "무려", "훨씬", "역대", "최초", "최신",
+      "우리", "저는", "제가", "여러분", "사람", "사람들", "누구", "무엇", "어떤", "어떻게",
+      "이유", "방법", "순간", "경우", "정도", "수준", "상황", "문제", "결과", "차이", "변화",
+      "부분", "전체", "하나", "세상", "시대", "시간", "하루", "생각", "이야기", "얘기",
+      "영상", "채널", "구독", "댓글", "링크", "공개", "무료", "전격", "긴급", "충격",
+      "정리", "총정리", "완전정복", "가이드", "강의", "튜토리얼", "사용법", "활용법",
+      "후기", "리뷰", "비교", "입문", "기초", "실전", "만들기", "하는법", "따라하기",
+      "합니다", "입니다", "했습니다", "됩니다", "드립니다", "봤습니다", "만들었습니다",
+      "교수", "박사", "대표", "회장", "출연", "인터뷰", "시즌", "부터", "까지",
+      "핵심", "설치", "공략", "비법", "꿀팁", "정리법", "만드", "하는", "되는", "쓰는",
+      "나만", "이거", "저거", "그거", "여기", "거기", "얼마나", "이렇", "그렇",
+      "완벽", "개념", "소개", "설명", "요약", "발표", "공식", "국내", "해외",
+      "the", "and", "for", "with", "you", "your", "how", "que", "này",
+      "a", "i", "to", "of", "in", "is", "it", "on", "new", "this", "that", "my",
+      "we", "can", "will", "just", "not", "are", "was", "but", "all", "from",
+      "build", "make", "create", "use", "using", "get", "best", "free", "full",
+      "course", "tutorial", "complete", "guide", "beginners", "step", "steps",
+      "minutes", "hours", "easy", "better", "watch", "video", "why", "what",
+      "now", "top", "vs", "no", "one", "two", "three", "first", "everything"
+    ]
+  },
+  "brightdata": {
+    "dataset_id": "gd_lk56epmy2i5g7lzu0k",
+    "dataset_key": "youtube_videos",
+    "note": "dataset_id is the Bright Data YouTube videos dataset. Live path requires BRIGHTDATA_API_KEY or BRIGHTDATA_API_TOKEN."
+  }
+}

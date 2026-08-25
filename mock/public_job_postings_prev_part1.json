@@ -1,0 +1,41 @@
+[
+  {
+    "_mock_fixture": true,
+    "job_posting_id": "JP-1001",
+    "job_title": "AI 엔지니어",
+    "company_name": "샘플바이오",
+    "job_location": "Seoul, South Korea",
+    "job_employment_type": "Full-time",
+    "job_seniority_level": "Mid-Senior level",
+    "job_posted_date": "2026-08-01",
+    "job_num_applicants": "12",
+    "job_base_pay_range": "4000-6000만원",
+    "url": "https://example.com/jobs/mock-jp-1001"
+  },
+  {
+    "_mock_fixture": true,
+    "job_posting_id": "JP-1002",
+    "job_title": "데이터 엔지니어",
+    "company_name": "테스트로직스",
+    "job_location": "Seoul, South Korea",
+    "job_employment_type": "Full-time",
+    "job_seniority_level": "Entry level",
+    "job_posted_date": "2026-08-02",
+    "job_num_applicants": "5",
+    "job_base_pay_range": "3500-5000만원",
+    "url": "https://example.com/jobs/mock-jp-1002"
+  },
+  {
+    "_mock_fixture": true,
+    "job_posting_id": "JP-1003",
+    "job_title": "백엔드 엔지니어",
+    "company_name": "예시커머스",
+    "job_location": "Seoul, South Korea",
+    "job_employment_type": "Full-time",
+    "job_seniority_level": "Mid-Senior level",
+    "job_posted_date": "2026-08-02",
+    "job_num_applicants": "20",
+    "job_base_pay_range": "4500-6500만원",
+    "url": "https://example.com/jobs/mock-jp-1003"
+  }
+]

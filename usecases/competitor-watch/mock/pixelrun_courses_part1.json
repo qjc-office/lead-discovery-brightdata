@@ -1,0 +1,24 @@
+[
+  {
+    "_mock_fixture": true,
+    "program_name": "Mock 바이브 코딩 입문 (합성 레코드)",
+    "price_krw": "",
+    "list_price_krw": "",
+    "duration": "4주",
+    "format": "온라인",
+    "cohort_status": "",
+    "keywords": "바이브,코딩,AI",
+    "url": "https://pixelrun.example.com/courses/mock-vibe-coding"
+  },
+  {
+    "_mock_fixture": true,
+    "program_name": "Mock AI 에이전트 실무 (합성 레코드)",
+    "price_krw": "",
+    "list_price_krw": "",
+    "duration": "6주",
+    "format": "온라인",
+    "cohort_status": "",
+    "keywords": "AI,에이전트,자동화",
+    "url": "https://pixelrun.example.com/courses/mock-ai-agent"
+  }
+]
