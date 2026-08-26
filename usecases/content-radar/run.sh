@@ -9,6 +9,19 @@
 
 set -uo pipefail
 
+# python3 라는 이름이 없는 환경이 있다. 윈도우에 python.org 설치본을 깔면
+# python.exe 만 생기고 python3.exe 는 안 만들어진다. 이름 때문에 막히지 않도록
+# 여기서 한 번 찾아 둔다.
+if command -v python3 >/dev/null 2>&1; then
+  PY=python3
+elif command -v python >/dev/null 2>&1; then
+  PY=python
+else
+  echo "파이썬을 찾을 수 없습니다. python.org 에서 3.10 이상을 설치해 주세요." >&2
+  exit 1
+fi
+
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS="$HERE/results"
 LOG="$RESULTS/run-log.txt"
@@ -29,7 +42,7 @@ mkdir -p "$RESULTS"
 
 run_all() {
   echo "=== content radar run: $(date '+%Y-%m-%d %H:%M:%S %Z') ==="
-  echo "python3: $(python3 --version 2>&1)"
+  echo "python: $("$PY" --version 2>&1) ($PY)"
   echo "yt-dlp:  $(yt-dlp --version 2>&1)"
   echo "credentials present (presence only, values never printed):"
   for name in BRIGHTDATA_API_KEY BRIGHTDATA_API_TOKEN YOUTUBE_QJC_REFRESH_TOKEN; do
@@ -40,7 +53,7 @@ run_all() {
 
   if [ "$RANK_ONLY" = "no" ]; then
     echo "--- step 1: collect ---"
-    python3 "$HERE/collect.py" --outdir "$RESULTS" --bd "$BD_MODE"
+    "$PY" "$HERE/collect.py" --outdir "$RESULTS" --bd "$BD_MODE"
     collect_rc=$?
     echo "collect exit code: $collect_rc"
     if [ "$collect_rc" -ne 0 ]; then
@@ -51,7 +64,7 @@ run_all() {
   fi
 
   echo "--- step 2: rank ---"
-  python3 "$HERE/rank.py" --outdir "$RESULTS" --top "$TOP"
+  "$PY" "$HERE/rank.py" --outdir "$RESULTS" --top "$TOP"
   rank_rc=$?
   echo "rank exit code: $rank_rc"
   echo

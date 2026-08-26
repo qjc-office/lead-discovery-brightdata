@@ -23,6 +23,18 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# python3 라는 이름이 없는 환경이 있다. 윈도우에 python.org 설치본을 깔면
+# python.exe 만 생기고 python3.exe 는 안 만들어진다. 이름 때문에 막히지 않도록
+# 여기서 한 번 찾아 둔다.
+if command -v python3 >/dev/null 2>&1; then
+  PY=python3
+elif command -v python >/dev/null 2>&1; then
+  PY=python
+else
+  echo "파이썬을 찾을 수 없습니다. python.org 에서 3.10 이상을 설치해 주세요." >&2
+  exit 1
+fi
+
 # 키가 셸에 없으면 .env 를 읽는다. run_daily.sh 와 같은 방식이다.
 # 이게 없으면 ".env 에 키를 넣었는데 왜 안 되나"에서 막힌다.
 if [ -z "${BRIGHTDATA_API_KEY:-}" ] && [ -f "$DIR/.env" ]; then
@@ -58,7 +70,7 @@ TRIGGER_BODY=$(curl -sS -X POST \
 # 응답에 snapshot_id 가 없으면 여기서 멈추고 이유를 사람 말로 알려 준다.
 # 그냥 python 에 넘기면 KeyError 트레이스백이 떠서 무엇이 잘못됐는지 안 보인다.
 SNAPSHOT_ID=$(printf '%s' "$TRIGGER_BODY" \
-  | python3 -c 'import json,sys
+  | "$PY" -c 'import json,sys
 try:
     print(json.load(sys.stdin).get("snapshot_id") or "")
 except Exception:
@@ -81,7 +93,7 @@ echo "2) poll until ready"
 for _ in $(seq 1 60); do
   STATUS=$(curl -sS "${API}/datasets/v3/progress/${SNAPSHOT_ID}" \
     -H "Authorization: Bearer ${BRIGHTDATA_API_KEY}" \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))')
+    | "$PY" -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))')
   echo "   status=${STATUS}"
   [ "$STATUS" = "ready" ] && break
   [ "$STATUS" = "failed" ] && { echo "   collection failed"; exit 1; }
@@ -93,7 +105,7 @@ curl -sS "${API}/datasets/v3/snapshot/${SNAPSHOT_ID}?format=json" \
   -H "Authorization: Bearer ${BRIGHTDATA_API_KEY}" \
   -o level1_result.json
 
-python3 - <<'PY'
+"$PY" - <<'PY'
 import json
 
 rows = json.load(open("level1_result.json"))
