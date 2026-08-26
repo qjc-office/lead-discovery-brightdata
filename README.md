@@ -26,6 +26,13 @@ export BRIGHTDATA_API_KEY=여기에_발급받은_키
 ./level1_curl.sh
 ```
 
+터미널을 껐다 켜면 `export`는 사라집니다. 매번 다시 치기 싫으면 키를 `.env`에 적어 두세요. 스크립트가 알아서 읽습니다.
+
+```bash
+cp .env.example .env        # .env 를 열어 BRIGHTDATA_API_KEY=... 한 줄만 채우면 됩니다
+./level1_curl.sh
+```
+
 curl로 세 번 왕복(요청 시작, 진행 상태 확인, 결과 다운로드)한 뒤, 회사 하나의 공개 기업 정보(업종, 임직원 규모, 홈페이지)가 정리된 JSON이 화면에 뜹니다. 파싱 코드를 한 줄도 안 짰다는 것이 요점입니다. 전체 응답은 `level1_result.json`에 저장됩니다.
 
 ### 아직 키가 없다면: mock 모드로 미리 보기
