@@ -47,6 +47,8 @@ python3 diff_checker.py --target public_job_postings             # 신규 2건, 
 python3 notify.py --mock --dry-run                                # Slack 페이로드를 화면에 출력
 ```
 
+윈도우에서 `python3: command not found`가 뜨면 `python3`를 `python`으로 바꿔 치면 됩니다. python.org 설치본은 `python.exe`만 만들고 `python3.exe`는 안 만들거든요. `.sh` 스크립트들은 두 이름을 알아서 찾으니 그대로 두셔도 됩니다.
+
 `--mock`을 `--live`로 바꾸는 것 외에 코드 변경은 없습니다. 요청 형태가 동일합니다.
 
 ```bash
