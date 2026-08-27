@@ -31,7 +31,13 @@ MAX_ITEMS_IN_MESSAGE = 10
 
 
 def newest_diff(data_dir: Path) -> Path | None:
-    files = sorted(data_dir.glob("diff_*.json"))
+    """가장 최근에 만들어진 diff 파일.
+
+    파일명 정렬로 고르면 안 된다. diff_amazon_products_20260827.json 과
+    diff_public_job_postings_20260803.json 이 같이 있으면 알파벳순으로는 항상
+    뒤엣것이 이겨서, 오늘 만든 결과 대신 며칠 전 결과를 알림으로 보내게 된다.
+    """
+    files = sorted(data_dir.glob("diff_*.json"), key=lambda f: f.stat().st_mtime)
     return files[-1] if files else None
 
 

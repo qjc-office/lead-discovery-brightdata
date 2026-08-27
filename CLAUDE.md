@@ -20,6 +20,9 @@ Bright Data Web Scraper API로 채용공고나 상품목록을 주기적으로 �
 python3 fetch_postings.py --mock      # 또는 --live
 python3 diff_checker.py
 python3 notify.py --dry-run
+
+# python3 라는 이름이 없는 환경(윈도우 python.org 설치본)이면 python 으로 바꿔 친다.
+# .sh 스크립트들은 두 이름을 알아서 찾으므로 그대로 두면 된다.
 ```
 
 ## 지켜야 할 것

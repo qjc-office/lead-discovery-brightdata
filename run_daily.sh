@@ -25,12 +25,31 @@ else
   exit 1
 fi
 
-if [ -f "$DIR/.env" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$DIR/.env"
-  set +a
-fi
+load_env() {
+  # .env 를 "실행"하지 않고 한 줄씩 읽어 KEY=VALUE 만 받는다.
+  # `. .env` 로 소스하면 값에 공백이 섞였을 때(키를 복붙하다 흔히 생긴다)
+  # 뒷부분을 명령어로 실행하려 들어서 ".env: line 1: def: command not found"
+  # 같은 엉뚱한 에러가 뜬다. 키를 잘못 붙여넣은 사람에게 줄 메시지가 아니다.
+  [ -f "$1" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    key=${line%%=*}
+    val=${line#*=}
+    case "$key" in
+      *[!A-Za-z0-9_]*|'') continue ;;   # KEY 자리에 이상한 글자가 있으면 무시
+    esac
+    val=${val%%[$'\t' ]#*}              # 값 뒤 " # 주석" 제거
+    val=${val#[\"\']}; val=${val%[\"\']}   # 감싼 따옴표 한 겹 제거
+    val=${val%"${val##*[![:space:]]}"}  # 뒤쪽 공백 제거
+    if [ -n "$val" ]; then
+      export "$key=$val"
+    fi
+  done < "$1"
+}
+
+load_env "$DIR/.env"
 
 MODE="${1:---mock}"   # pass --live once your API key is in place
 TARGET="${2:-public_job_postings}"
