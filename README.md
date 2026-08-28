@@ -75,7 +75,7 @@ python3 fetch_postings.py --live
 | Level 3 | 전일 대비 변화 감지, Slack 알림, cron 스케줄 | `diff_checker.py`, `notify.py`, `run_daily.sh` |
 | MCP | Claude Code가 위 스크립트를 도구로 직접 호출 | `mcp_server.py`, `.mcp.json.example` |
 
-<!-- 이미지 자리: docs/images/02-flow.png. Level 1(curl)부터 Level 3(cron+Slack), MCP(Claude Code 연동)까지 4단계가 이어지는 흐름도. 각 단계에서 쓰는 파일명을 함께 표기 -->
+<!-- docs/images/02-flow.png. HTML/CSS 로 렌더한 4단계 흐름도. 각 단계에서 쓰는 파일명을 함께 표기했다. -->
 ![4단계 파이프라인: curl에서 MCP까지](docs/images/02-flow.png)
 
 ## 각 파일이 하는 일
@@ -153,7 +153,7 @@ cron은 환경변수가 비어 있는 상태로 시작하므로 `run_daily.sh`�
 [diff]   ~ B0CDWP1D58 | Redragon K668 108-Key Hot-Swap Wired RGB | final_price 51.99 -> 39.99
 ```
 
-<!-- 이미지 자리: docs/images/03-diff.png. diff_checker.py 실행 결과 터미널 화면과 그 diff가 Slack 메시지로 도착한 화면을 나란히 배치한 스크린샷 -->
+<!-- docs/images/03-diff.png. mock 실행 결과를 HTML 로 재현한 것. 왼쪽 터미널 출력(new=2 removed=1)과 오른쪽 Slack 메시지가 실제 실행 결과와 같다. -->
 ![diff_checker.py 실행 결과와 Slack 알림](docs/images/03-diff.png)
 
 Slack 알림에도 `*Changed*` 섹션으로 `final_price 51.99 → 39.99` 형태로 실립니다. `watch_fields`가 없는 타깃은 종전대로 신규·삭제만 봅니다.
