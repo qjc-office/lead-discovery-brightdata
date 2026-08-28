@@ -121,8 +121,10 @@ cp .mcp.json.example .mcp.json
 
 노출되는 도구는 `list_targets`, `fetch_postings`, `diff_check`, `notify_slack` 4종입니다. 도구 호출 순서와 mock 표기 의무는 `CLAUDE.md`에 규정돼 있고, `/monitor` 슬래시 커맨드로도 같은 흐름을 실행할 수 있습니다.
 
-<!-- 이미지 자리: docs/images/04-mcp.png. Claude Code 채팅창에서 "채용공고 새로 올라온 거 있어?" 같은 질문을 하면 fetch_postings, diff_check, notify_slack 도구가 순서대로 호출되는 화면 캡처 -->
-![Claude Code가 MCP 도구를 순서대로 호출하는 화면](docs/images/04-mcp.png)
+<!-- docs/images/04-mcp.png. 실제 실행 화면 캡처(영상에서 발췌). "오늘 가격 바뀐거 있어?" 한 줄에 list_targets 가 호출되고, 질문 내용을 보고 amazon_products 를 골라 fetch → diff 로 넘어간다. -->
+![Claude Code에서 "오늘 가격 바뀐거 있어?"라고 묻자 list_targets MCP 도구가 호출되고 감시 대상 목록을 받아 오는 화면](docs/images/04-mcp.png)
+
+명령어 이름을 외울 필요가 없습니다. "오늘 가격 바뀐거 있어?"라고 물으면 도구 목록을 먼저 확인하고, 질문이 가격에 관한 것이니 `amazon_products`를 고른 뒤 `CLAUDE.md`에 적힌 순서대로 fetch에서 diff로 넘어갑니다. 키가 없는 환경이라 mock 모드가 기본값으로 잡힌 것도 화면에 그대로 나옵니다.
 
 ## 매일 자동 실행
 
