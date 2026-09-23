@@ -87,7 +87,7 @@ def build_payload(diff: dict, mock: bool) -> dict:
         {"type": "context", "elements": [
             {"type": "mrkdwn",
              "text": f"*{label}* | checked {diff['current_count']} record(s) "
-                     f"| removed {diff['removed_count']} | {diff['generated_at']}"}
+                     f"| removed {diff['removed_count']} | missing {diff.get('missing_count', 0)} | {diff['generated_at']}"}
         ]},
     ]
     if mock:
@@ -99,6 +99,12 @@ def build_payload(diff: dict, mock: bool) -> dict:
         sections.append("*New*\n" + "\n".join(_item_lines(diff["new_items"], "•")))
     if diff["removed_items"]:
         sections.append("*No longer listed*\n" + "\n".join(_item_lines(diff["removed_items"], "•")))
+    if diff.get("missing_items"):
+        sections.append(
+            "*Not collected this run*\n"
+            "_한 번 빠진 것은 수집 실패일 수 있어 삭제로 보지 않습니다._\n"
+            + "\n".join(_item_lines(diff["missing_items"], "•"))
+        )
     if diff.get("changed_items"):
         sections.append("*Changed*\n" + "\n".join(_change_lines(diff["changed_items"])))
     for text in sections:
@@ -137,7 +143,8 @@ def main(argv: list[str]) -> int:
     diff = json.loads(diff_path.read_text(encoding="utf-8"))
     print(f"[notify] source={diff_path}")
 
-    touched = diff.get("new_count") or diff.get("removed_count") or diff.get("changed_count")
+    touched = (diff.get("new_count") or diff.get("removed_count")
+               or diff.get("changed_count") or diff.get("missing_count"))
     if not touched and not args.always:
         print("[notify] no changes, nothing to send")
         return 1

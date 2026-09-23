@@ -52,6 +52,35 @@ def latest_two(data_dir: Path, target_name: str) -> tuple[Path | None, Path | No
     return files[-1], files[-2]
 
 
+def recent_snapshots(data_dir: Path, target_name: str, limit: int,
+                     upto: Path | None = None) -> list[Path]:
+    """Return up to `limit` snapshots ending at `upto`, oldest first.
+
+    `upto` matters when diffing an older pair explicitly: without it the streak
+    would count snapshots taken *after* the one being diffed and call a
+    one-off miss a removal.
+    """
+    files = sorted(data_dir.glob(f"{target_name}_*.csv"))
+    if upto is not None:
+        files = [f for f in files if f.name <= upto.name]
+    return files[-limit:]
+
+
+def absence_streak(indexed: list[dict], key: str) -> int:
+    """How many consecutive most-recent snapshots lack this id.
+
+    A single miss usually means the scraper failed on that page, not that the
+    product is gone. Out-of-stock Coupang pages drop out intermittently
+    (2026-09-23: 4 of 8 vanished at 09:24 and all came back at 13:07).
+    """
+    streak = 0
+    for idx in reversed(indexed):
+        if key in idx:
+            break
+        streak += 1
+    return streak
+
+
 def index_by(rows: list[dict], id_field: str) -> dict[str, dict]:
     return {str(r.get(id_field)): r for r in rows if r.get(id_field)}
 
@@ -99,12 +128,43 @@ def collect_changed(cur_idx: dict, prev_idx: dict, target: dict) -> list[dict]:
 
 
 def build_diff(current: list[dict], previous: list[dict] | None, target: dict, target_name: str,
-               current_path: Path, previous_path: Path | None) -> dict:
+               current_path: Path, previous_path: Path | None,
+               history: list[Path] | None = None) -> dict:
     cur_idx = index_by(current, target["id_field"])
     prev_idx = index_by(previous or [], target["id_field"])
     baseline = previous is not None
-    new_ids = [k for k in cur_idx if k not in prev_idx] if baseline else []
-    removed_ids = [k for k in prev_idx if k not in cur_idx] if baseline else []
+    new_ids: list[str] = []  # known_idx 산출 뒤 아래에서 채운다
+    # 한 번 빠졌다고 "내려갔다"고 단정하지 않는다. 수집 실패와 실제 삭제를
+    # 구분하려면 연속 결석을 봐야 한다 (2026-09-23 쿠팡 오탐 4건).
+    #
+    # 결석 후보는 "어제 있었는데 오늘 없음"으로 잡으면 안 된다. 그러면 어제
+    # 이미 빠진 항목이 후보에서 제외돼 연속 결석이 2에 닿지 못하고, removed
+    # 판정이 영원히 나오지 않는다. 그래서 직전 한 장이 아니라 최근 이력
+    # 전체에서 한 번이라도 본 id를 후보로 둔다.
+    # 기본 2는 오탐을 줄일 뿐 없애지 못한다. 같은 페이지가 이틀 연속 실패하면
+    # 멀쩡한 상품도 removed로 간다. 품절 페이지처럼 반복 실패가 잦은 대상은
+    # 타겟별 absence_threshold를 올려 잡는다.
+    threshold = int(target.get("absence_threshold", 2))
+    id_field = target["id_field"]
+    # 경로 객체로 비교하면 같은 파일이라도 상대/절대 표기가 다를 때 어긋난다.
+    # 그러면 오늘 스냅샷이 past에 남아 결석이 두 번 세어지고, 1회 누락이
+    # removed로 튄다(=고치려던 그 오탐). 파일명으로 비교한다.
+    past = [index_by(read_csv(p), id_field)
+            for p in (history or []) if p.name != current_path.name]
+    known_idx: dict[str, dict] = {}
+    for idx in past:
+        known_idx.update(idx)
+    absent_ids = [k for k in known_idx if k not in cur_idx] if baseline else []
+    # 신규 판정도 같은 창을 본다. 직전 한 장만 보면 어제 누락됐다 오늘 돌아온
+    # 항목이 매번 "신규"로 잡힌다(removed 오탐의 거울상).
+    if baseline:
+        new_ids = [k for k in cur_idx if k not in known_idx and k not in prev_idx]
+
+    removed_ids, missing_ids = [], []
+    for key in absent_ids:
+        streak = absence_streak(past + [cur_idx], key)
+        (removed_ids if streak >= threshold else missing_ids).append(key)
+
     changed_items = collect_changed(cur_idx, prev_idx, target) if baseline else []
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -117,10 +177,13 @@ def build_diff(current: list[dict], previous: list[dict] | None, target: dict, t
         "previous_count": len(prev_idx),
         "new_count": len(new_ids),
         "removed_count": len(removed_ids),
+        "missing_count": len(missing_ids),
+        "absence_threshold": threshold if baseline else None,
         "changed_count": len(changed_items),
         "watch_fields": target.get("watch_fields") or [],
         "new_items": [summarize(cur_idx[k], target) for k in new_ids],
-        "removed_items": [summarize(prev_idx[k], target) for k in removed_ids],
+        "removed_items": [summarize(known_idx[k], target) for k in removed_ids],
+        "missing_items": [summarize(known_idx[k], target) for k in missing_ids],
         "changed_items": changed_items,
     }
 
@@ -160,7 +223,9 @@ def main(argv: list[str]) -> int:
 
     current = read_csv(cur_path)
     previous = read_csv(prev_path) if prev_path else None
-    diff = build_diff(current, previous, target, target_name, cur_path, prev_path)
+    history = recent_snapshots(Path(args.data_dir), target_name,
+                               int(target.get("absence_threshold", 2)) + 1, upto=cur_path)
+    diff = build_diff(current, previous, target, target_name, cur_path, prev_path, history)
 
     out_path = Path(args.out) if args.out else Path(args.data_dir) / f"diff_{target_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -181,7 +246,8 @@ def main(argv: list[str]) -> int:
 
     if not diff["baseline_present"]:
         return 0
-    touched = diff["new_count"] or diff["removed_count"] or diff["changed_count"]
+    touched = (diff["new_count"] or diff["removed_count"]
+               or diff["changed_count"] or diff["missing_count"])
     return 0 if touched else 1
 
 
