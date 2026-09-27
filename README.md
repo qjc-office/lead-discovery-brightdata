@@ -131,10 +131,10 @@ cp .mcp.json.example .mcp.json
 ```bash
 crontab -e
 # 매일 오전 9시
-0 9 * * * /full/path/to/repo/run_daily.sh --live >> /full/path/to/repo/data/cron.log 2>&1
+0 9 * * * /full/path/to/repo/run_daily.sh --live amazon_tracked >> /full/path/to/repo/data/cron.log 2>&1
 ```
 
-cron은 환경변수가 비어 있는 상태로 시작하므로 `run_daily.sh`가 `.env`를 직접 읽습니다.
+cron은 환경변수가 비어 있는 상태로 시작하므로 `run_daily.sh`가 `.env`를 직접 읽습니다. 타깃 이름을 빼면 기본값인 `public_job_postings`로 돌고, 이 타깃은 `dataset_id`가 비어 있어 실패합니다. 추적할 타깃마다 한 줄씩 거세요.
 
 ## 값이 바뀐 것도 잡기 (`watch_fields`)
 

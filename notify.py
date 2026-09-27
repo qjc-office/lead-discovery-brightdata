@@ -75,13 +75,25 @@ def _change_lines(items: list[dict]) -> list[str]:
 def build_payload(diff: dict, mock: bool) -> dict:
     """Slack Block Kit payload. https://api.slack.com/block-kit"""
     label = diff.get("label", diff.get("target", "monitor"))
-    changed_count = diff.get("changed_count", 0)
-    if changed_count and not diff["new_count"]:
-        header = f"Values changed: {changed_count}"
-    elif changed_count:
-        header = f"New items: {diff['new_count']}, changed: {changed_count}"
-    else:
+    # 0이 아닌 항목만 헤더에 올린다. 예전엔 신규·변동이 모두 0이면 무조건
+    # "New items detected: 0"을 찍어서, 누락만 있거나 삭제만 있는 날에도
+    # 헤더가 "신규 0건"으로 나와 고장 난 알림처럼 보였다.
+    counts = [
+        ("New items", diff.get("new_count", 0)),
+        ("changed", diff.get("changed_count", 0)),
+        ("removed", diff.get("removed_count", 0)),
+        ("not collected", diff.get("missing_count", 0)),
+    ]
+    parts = [f"{name}: {n}" for name, n in counts if n]
+    if not parts:
+        header = "No changes"
+    elif parts == [f"New items: {diff.get('new_count', 0)}"]:
         header = f"New items detected: {diff['new_count']}"
+    elif len(parts) == 1 and parts[0].startswith("changed"):
+        header = f"Values changed: {diff['changed_count']}"
+    else:
+        header = ", ".join(parts)
+        header = header[0].upper() + header[1:]
     blocks: list[dict] = [
         {"type": "header", "text": {"type": "plain_text", "text": header, "emoji": False}},
         {"type": "context", "elements": [
