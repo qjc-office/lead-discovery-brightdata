@@ -30,6 +30,8 @@ from typing import Any
 
 API_BASE = "https://api.brightdata.com"
 TRIGGER_PATH = "/datasets/v3/trigger"
+COLLECTOR_TRIGGER_PATH = "/dca/trigger"
+COLLECTOR_DATASET_PATH = "/dca/dataset"
 PROGRESS_PATH = "/datasets/v3/progress"
 SNAPSHOT_PATH = "/datasets/v3/snapshot"
 TERMINAL_OK = "ready"
@@ -123,6 +125,93 @@ class LiveTransport:
         return int(payload.get("parts") or payload.get("total_parts") or 1)
 
 
+class CollectorTransport:
+    """Scraper Studio(자작 수집기)용 전송. Library 스크래퍼와 API 경로가 다르다.
+
+    Library 스크래퍼는 /datasets/v3/*(dataset_id)를 쓰지만, Studio에서 만든
+    수집기는 /dca/*(collector id)를 쓴다. 트리거가 collection_id를 주고,
+    /dca/dataset 이 준비 전에는 202 {"status":"building"}, 준비되면 레코드를 돌려준다.
+    LiveTransport 와 같은 메서드 시그니처를 유지해 BrightDataClient 가 그대로 쓴다.
+    """
+
+    mode = "live"
+
+    def __init__(self, token: str, collector_id: str) -> None:
+        if not token:
+            raise BrightDataError(
+                "BRIGHTDATA_API_KEY is not set. Export it, or run with --mock to use fixtures."
+            )
+        if not collector_id:
+            raise BrightDataError("collector_id is required for a Scraper Studio target")
+        self.token = token
+        self.collector_id = collector_id
+
+    def trigger(self, dataset_id: str, inputs: list[dict], params: dict) -> str:
+        # dataset_id 는 인터페이스 호환용으로 받고 쓰지 않는다. collector 는 생성자에서 온다.
+        query = {"collector": self.collector_id, "queue_next": 1}
+        url = f"{API_BASE}{COLLECTOR_TRIGGER_PATH}?{urllib.parse.urlencode(query)}"
+        payload = _request("POST", url, self.token, body=inputs)
+        collection_id = (payload or {}).get("collection_id") or (payload or {}).get("response_id")
+        if not collection_id:
+            raise BrightDataError(f"dca trigger returned no collection_id: {payload!r}")
+        return collection_id
+
+    def _fetch(self, collection_id: str, timeout: int = 60) -> Any:
+        url = f"{API_BASE}{COLLECTOR_DATASET_PATH}?{urllib.parse.urlencode({'id': collection_id})}"
+        return _request("GET", url, self.token, timeout=timeout)
+
+    @staticmethod
+    def _rows(payload: Any) -> list[dict]:
+        """입력이 여러 건이면 응답이 NDJSON(한 줄에 레코드 하나)으로 온다.
+
+        그 경우 _request 가 JSON 파싱에 실패해 raw 문자열을 돌려주므로
+        여기서 줄 단위로 풀어 준다. 단건이면 그냥 객체 하나가 온다.
+        """
+        if isinstance(payload, list):
+            return [r for r in payload if isinstance(r, dict)]
+        if isinstance(payload, dict):
+            return [payload]
+        rows: list[dict] = []
+        for line in str(payload or "").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                rows.append(parsed)
+            elif isinstance(parsed, list):
+                rows.extend(r for r in parsed if isinstance(r, dict))
+        return rows
+
+    def progress(self, snapshot_id: str) -> dict:
+        payload = self._fetch(snapshot_id)
+        if isinstance(payload, dict):
+            status = payload.get("status")
+            if status in ("building", "running", "pending", "collecting"):
+                return {"status": "running"}
+            if status in ("failed", "error"):
+                return {"status": TERMINAL_FAIL}
+            return {"status": TERMINAL_OK}
+        rows = self._rows(payload)
+        if not rows:
+            # 아직 아무것도 안 왔으면 준비 중으로 본다. 완료 후 빈 결과는
+            # collect() 상위에서 "empty result set" 으로 잡힌다.
+            text = str(payload or "").lower()
+            if "fail" in text or "error" in text:
+                return {"status": TERMINAL_FAIL}
+            return {"status": "running"}
+        return {"status": TERMINAL_OK}
+
+    def download(self, snapshot_id: str, fmt: str, batch_size: int | None, part: int | None) -> list[dict]:
+        return self._rows(self._fetch(snapshot_id, timeout=180))
+
+    def parts(self, snapshot_id: str, batch_size: int | None = None) -> int:
+        return 1
+
+
 class MockTransport:
     """Replays fixtures so the full pipeline runs without an API key.
 
@@ -202,10 +291,20 @@ class BrightDataClient:
         return self.transport.mode
 
     @classmethod
-    def from_env(cls, mock: bool, mock_dir: Path, dataset_key: str, logger=print) -> "BrightDataClient":
+    def from_env(
+        cls,
+        mock: bool,
+        mock_dir: Path,
+        dataset_key: str,
+        logger=print,
+        collector_id: str = "",
+    ) -> "BrightDataClient":
         if mock:
             return cls(MockTransport(mock_dir, dataset_key), logger)
-        return cls(LiveTransport(os.environ.get("BRIGHTDATA_API_KEY", "")), logger)
+        token = os.environ.get("BRIGHTDATA_API_KEY", "")
+        if collector_id:
+            return cls(CollectorTransport(token, collector_id), logger)
+        return cls(LiveTransport(token), logger)
 
     def collect(
         self,

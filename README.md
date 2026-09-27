@@ -160,7 +160,7 @@ Slack 알림에도 `*Changed*` 섹션으로 `final_price 51.99 → 39.99` 형태
 
 ## 다른 도메인에 적용하기
 
-`scraper_config.json`의 `inputs`만 바꾸면 됩니다. 다른 대상을 쓰려면 [Bright Data API 레퍼런스](https://docs.brightdata.com/api-reference/scrapers/management-apis/get-scrapers)에서 해당 스크래퍼의 `dataset_id`를 찾아 `targets`에 항목을 추가하세요. 현재 예시로 두 개가 들어 있습니다.
+`scraper_config.json`의 `inputs`만 바꾸면 됩니다. 다른 대상을 쓰려면 [Bright Data API 레퍼런스](https://docs.brightdata.com/api-reference/scrapers/management-apis/get-scrapers)에서 해당 스크래퍼의 `dataset_id`를 찾아 `targets`에 항목을 추가하세요. 아래 두 개는 탐색(키워드 검색)용 예시이고, 가격 추적용 세 개는 다음 절에 있습니다.
 
 | 대상 | dataset_id | 문서 |
 |---|---|---|
@@ -172,6 +172,34 @@ Amazon 쪽은 `dataset_id`가 채워져 있어 키만 넣으면 바로 돕니다
 어떤 잡보드를 고르든 그 사이트의 이용약관과 robots.txt를 먼저 확인하세요. 스크래퍼가 있다는 것과 긁어도 된다는 것은 다른 이야기입니다.
 
 예를 들어 자사 쇼핑몰 대신 경쟁사 쇼핑몰의 상품 가격을 감시하고 싶다면, `amazon_products`를 복제해 `inputs`의 검색 키워드만 자기 업종에 맞게 바꾸면 됩니다. 채용공고를 감시하고 싶다면 `public_job_postings`의 `location`, `keyword`를 원하는 직무·지역으로 바꾸면 됩니다.
+
+## 같은 상품을 매일 추적하기 (아마존·쿠팡·다나와)
+
+키워드로 검색하면 날마다 결과 목록이 달라져서 "어제와 비교"가 성립하지 않습니다. 추적은 상품 URL을 고정해 두고 매일 같은 것을 다시 받는 방식으로 합니다. `scraper_config.json`에 이 방식의 타깃이 세 개 있습니다.
+
+| 타깃 | 방식 | 키워드 검색 | ID 필드 |
+|---|---|---|---|
+| `amazon_tracked` | Bright Data 공식 스크래퍼 (`gd_l7q7dkf244hwjntr0`) | 됨 | `asin` |
+| `coupang_tracked` | Bright Data 공식 스크래퍼 (`gd_mcsxmfqptpufr191p`) | **안 됨.** 카테고리·브랜드·판매자 URL 또는 상품 URL만 | `id` |
+| `danawa_tracked` | Scraper Studio로 직접 만든 수집기 (`collector_id`) | 해당 없음 | `product_code` |
+
+자기 상품으로 바꾸려면 각 타깃의 `inputs`에 있는 상품 URL만 교체하면 됩니다.
+
+```bash
+bash run_daily.sh --live amazon_tracked
+bash run_daily.sh --live coupang_tracked
+```
+
+다나와 타깃의 `collector_id`는 QJC 계정에서 만든 수집기라 다른 계정에서는 돌지 않습니다. 공식 스크래퍼가 없는 사이트는 Scraper Studio에서 직접 만들고, 받은 `collector_id`를 넣으세요.
+
+### 한 번 안 잡혔다고 "사라졌다"로 보지 않는다
+
+수집은 매번 전량이 들어오지 않습니다. 실제로 쿠팡 13종을 매일 받았을 때 날에 따라 4종까지 빠졌고, 빠진 상품은 다음 수집에서 멀쩡히 돌아왔습니다. 그래서 `diff_checker.py`는 두 가지를 나눠 봅니다.
+
+- 이번에만 안 들어온 항목은 `missing`(수집 누락)
+- `absence_threshold`(기본 2)회 **연속으로** 안 들어와야 `removed`(목록에서 내려감)
+
+알림에서도 `Not collected this run`으로 따로 표시되고 삭제로 세지 않습니다. 누락이 잦은 대상은 타깃에 `"absence_threshold": 3`처럼 값을 올려 주세요.
 
 ## 무엇을 봐야 할지 모르겠다면 (`watch_fields` 정하는 법)
 

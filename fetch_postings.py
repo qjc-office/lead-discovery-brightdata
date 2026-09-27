@@ -81,8 +81,12 @@ def main(argv: list[str]) -> int:
     target_name, target = load_target(args.target)
     stamp = args.date or datetime.now(timezone.utc).strftime("%Y%m%d")
 
+    collector_id = target.get("collector_id", "")
     print(f"[fetch] target={target_name} mode={'mock' if use_mock else 'live'} date={stamp}")
-    print(f"[fetch] dataset_id={target['dataset_id']}  docs={target['doc_url']}")
+    if collector_id:
+        print(f"[fetch] collector_id={collector_id} (Scraper Studio)  docs={target['doc_url']}")
+    else:
+        print(f"[fetch] dataset_id={target['dataset_id']}  docs={target['doc_url']}")
     if use_mock:
         print("[fetch] MOCK MODE: records come from mock/ fixtures and are NOT real collection results.")
 
@@ -91,9 +95,10 @@ def main(argv: list[str]) -> int:
             mock=use_mock,
             mock_dir=MOCK_DIR,
             dataset_key=args.mock_key or target["mock_key"],
+            collector_id=collector_id,
         )
         snapshot_id, records = client.collect(
-            dataset_id=target["dataset_id"],
+            dataset_id=target.get("dataset_id", ""),
             inputs=target["inputs"],
             params=target.get("trigger_params", {}),
             fmt="json",

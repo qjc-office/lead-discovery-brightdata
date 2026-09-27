@@ -59,13 +59,20 @@
         "limit_per_input": "25"
       },
       "inputs": [
-        { "keyword": "mechanical keyboard" }
+        {
+          "keyword": "mechanical keyboard"
+        }
       ],
       "id_field": "asin",
       "title_field": "title",
       "subtitle_field": "brand",
       "url_field": "url",
-      "watch_fields": ["final_price", "is_available", "rating", "reviews_count"],
+      "watch_fields": [
+        "final_price",
+        "is_available",
+        "rating",
+        "reviews_count"
+      ],
       "csv_fields": [
         "asin",
         "title",
@@ -76,6 +83,250 @@
         "rating",
         "reviews_count",
         "is_available",
+        "url"
+      ]
+    },
+    "amazon_tracked": {
+      "_note": "Price tracking target. Unlike amazon_products (discover by keyword), this collects the SAME product URLs every run, which is what makes day-over-day comparison possible. Add or remove entries in 'inputs' to track your own products.",
+      "label": "Amazon price tracking (collect by URL)",
+      "dataset_id": "gd_l7q7dkf244hwjntr0",
+      "doc_url": "https://docs.brightdata.com/api-reference/scrapers/e-commerce-apis/amazon-products",
+      "mock_key": "amazon_products",
+      "trigger_params": {
+        "include_errors": "true"
+      },
+      "inputs": [
+        {
+          "url": "https://www.amazon.com/dp/B09B8V1LZ3"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0CHX3QBCH"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0HBWW3958"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0HDB6MTYJ"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0HCXW6CDR"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0BTYCRJSS"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0CRTR3PMF"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0CRTYZG5C"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0CZRX56CV"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B08LSJ4RHH"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0CS68QV83"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0DWMX5TXV"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B0FNRKLSMM"
+        },
+        {
+          "url": "https://www.amazon.com/dp/B07WVC9KSG"
+        }
+      ],
+      "id_field": "asin",
+      "title_field": "title",
+      "subtitle_field": "brand",
+      "url_field": "url",
+      "watch_fields": [
+        "final_price",
+        "is_available",
+        "rating",
+        "reviews_count"
+      ],
+      "csv_fields": [
+        "asin",
+        "title",
+        "brand",
+        "initial_price",
+        "final_price",
+        "currency",
+        "rating",
+        "reviews_count",
+        "is_available",
+        "url"
+      ]
+    },
+    "danawa_tracked": {
+      "_note": "Korean price tracking via a Scraper Studio collector. Unlike the Amazon targets (dataset_id + /datasets/v3), this one uses collector_id + /dca. Same URLs every run.",
+      "label": "Danawa price tracking (collect by URL)",
+      "collector_id": "c_mubbrin612g63hwm8n",
+      "doc_url": "https://docs.brightdata.com/scraping-automation/easy-scraper/faqs",
+      "mock_key": "amazon_products",
+      "trigger_params": {},
+      "inputs": [
+        {
+          "url": "https://prod.danawa.com/info/?pcode=94026476"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=108423050"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=61437527"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=90642845"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70003601"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=13363190"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=122645087"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=63466976"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70152575"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70152545"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70152629"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70251569"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70251512"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=70251404"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=124045694"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=72715829"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=72715832"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=72715874"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=33167732"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=33195506"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=33188396"
+        },
+        {
+          "url": "https://prod.danawa.com/info/?pcode=33154706"
+        }
+      ],
+      "id_field": "product_code",
+      "title_field": "product_name",
+      "subtitle_field": "manufacturer",
+      "url_field": "product_url",
+      "watch_fields": [
+        "lowest_price",
+        "seller_count"
+      ],
+      "csv_fields": [
+        "product_code",
+        "product_name",
+        "manufacturer",
+        "lowest_price",
+        "seller_count",
+        "spec_summary",
+        "product_url"
+      ]
+    },
+    "coupang_tracked": {
+      "_note": "Korean marketplace price tracking via Bright Data's official Coupang scraper. Coupang blocks direct crawling (robots.txt returns 403), so the official scraper is the sanctioned path. Two groups: Apple hardware (added 2026-09-22) and crested gecko keeping supplies (added 2026-09-23). Seller PII fields (contact/email/address/rep_name) are intentionally excluded.",
+      "label": "Coupang price tracking (collect by URL)",
+      "dataset_id": "gd_mcsxmfqptpufr191p",
+      "doc_url": "https://docs.brightdata.com/api-reference/scrapers/e-commerce-apis",
+      "mock_key": "amazon_products",
+      "trigger_params": {
+        "include_errors": "true"
+      },
+      "inputs": [
+        {
+          "url": "https://www.coupang.com/vp/products/8540912208"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/7122226122"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/8443849352"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/6411108925"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/8640310188"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/8443803244"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/8640310192"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/8443803255"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/7623423396"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/9206809407"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/8480924116"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/9606324780"
+        },
+        {
+          "url": "https://www.coupang.com/vp/products/7356388382"
+        }
+      ],
+      "id_field": "id",
+      "title_field": "title",
+      "subtitle_field": "seller_name",
+      "url_field": "url",
+      "watch_fields": [
+        "final_price",
+        "is_in_stock",
+        "rating",
+        "reviews"
+      ],
+      "csv_fields": [
+        "id",
+        "title",
+        "seller_name",
+        "initial_price",
+        "final_price",
+        "discount",
+        "currency",
+        "is_in_stock",
+        "rating",
+        "reviews",
+        "root_category",
         "url"
       ]
     }
