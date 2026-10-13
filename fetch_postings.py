@@ -150,18 +150,23 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
     if target.get("id_field") != "variant_id":
         return records, 0
     expected = set()
+    vendor_of: dict[str, str] = {}
     for item in target.get("inputs") or []:
-        found = re.search(r"[?&]itemId=(\d+)", str(item.get("url", "")))
+        url = str(item.get("url", ""))
+        found = re.search(r"[?&]itemId=(\d+)", url)
         if found:
             expected.add(found.group(1))
+            vendor = re.search(r"[?&]vendorItemId=(\d+)", url)
+            if vendor:
+                vendor_of[found.group(1)] = vendor.group(1)
     if not expected:
         # A variant_id-keyed target whose inputs carry no itemId would accept any
         # configuration that comes back. That is a config error, not a result.
         print("[fetch] ERROR variant_id target has no itemId in its input URLs, nothing written", file=sys.stderr)
         return [], 4
-    # vendorItemId is not checked: the Coupang dataset returns no vendor item
-    # field (verified 2026-10-13; its url field only echoes the input URL), so
-    # there is nothing in the response to compare it against.
+    # The Coupang dataset has no vendor item field of its own (verified
+    # 2026-10-13); its url/input fields echo the input URL. Comparing the
+    # vendorItemId found there still catches rows paired with the wrong input.
     seen: set[str] = set()
     dupes: set[str] = set()
     for record in records:
@@ -170,17 +175,34 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
             dupes.add(key)
         seen.add(key)
     extra = sorted(seen - expected)
+    wrong_vendor: list[str] = []
+
+    def vendor_ok(record: dict) -> bool:
+        key = str(record.get("variant_id") or "").strip()
+        want = vendor_of.get(key)
+        if not want:
+            return True
+        source = record.get("input") if isinstance(record.get("input"), dict) else {}
+        for url in (str(record.get("url") or ""), str(source.get("url") or "")):
+            got = re.search(r"[?&]vendorItemId=(\d+)", url)
+            if got and got.group(1) != want:
+                wrong_vendor.append(key)
+                return False
+        return True
+
     kept = [
         r for r in records
         if str(r.get("variant_id") or "").strip() in expected
         and str(r.get("variant_id") or "").strip() not in dupes
+        and vendor_ok(r)
     ]
     kept_ids = {str(r.get("variant_id")).strip() for r in kept}
     missing = sorted(expected - kept_ids)
     print(f"[fetch] variant coverage {len(kept_ids)}/{len(expected)}")
-    if missing or extra or dupes:
+    if missing or extra or dupes or wrong_vendor:
         print(
-            f"[fetch] WARNING variant mismatch missing={missing} extra(dropped)={extra} duplicate(dropped)={sorted(dupes)}",
+            f"[fetch] WARNING variant mismatch missing={missing} extra(dropped)={extra} "
+            f"duplicate(dropped)={sorted(dupes)} vendor_mismatch(dropped)={sorted(wrong_vendor)}",
             file=sys.stderr,
         )
     if not kept:
