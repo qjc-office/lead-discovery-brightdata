@@ -155,7 +155,13 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
         if found:
             expected.add(found.group(1))
     if not expected:
-        return records, 0
+        # A variant_id-keyed target whose inputs carry no itemId would accept any
+        # configuration that comes back. That is a config error, not a result.
+        print("[fetch] ERROR variant_id target has no itemId in its input URLs, nothing written", file=sys.stderr)
+        return [], 4
+    # vendorItemId is not checked: the Coupang dataset returns no vendor item
+    # field (verified 2026-10-13; its url field only echoes the input URL), so
+    # there is nothing in the response to compare it against.
     seen: set[str] = set()
     dupes: set[str] = set()
     for record in records:
