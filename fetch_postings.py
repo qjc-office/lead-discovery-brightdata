@@ -159,6 +159,9 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
             print(f"[fetch] ERROR input pins itemId without vendorItemId: {url}", file=sys.stderr)
             return [], 4
         if found:
+            if found.group(1) in expected:
+                print(f"[fetch] ERROR itemId {found.group(1)} is pinned twice in inputs", file=sys.stderr)
+                return [], 4
             expected.add(found.group(1))
             vendor_of[found.group(1)] = vendor.group(1)
     if not expected:
@@ -183,11 +186,16 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
         key = str(record.get("variant_id") or "").strip()
         want = vendor_of.get(key)
         source = record.get("input") if isinstance(record.get("input"), dict) else {}
-        seen_vendors = set()
+        pairs = set()
         for url in (str(record.get("url") or ""), str(source.get("url") or "")):
-            seen_vendors.update(re.findall(r"[?&]vendorItemId=(\d+)", url))
-        # 응답 쪽 vendorItemId가 정확히 하나이고 기대값과 같을 때만 보존한다(없거나 여럿이면 거부).
-        if seen_vendors != {want}:
+            if not url:
+                continue
+            items = re.findall(r"[?&]itemId=(\d+)", url)
+            vendors = re.findall(r"[?&]vendorItemId=(\d+)", url)
+            pairs.add((tuple(items), tuple(vendors)))
+        # Keep the row only when every URL in it names exactly this itemId and
+        # its configured vendorItemId (missing, mismatched or multiple → drop).
+        if pairs != {((key,), (want,))}:
             wrong_vendor.append(key)
             return False
         return True
