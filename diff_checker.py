@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -127,6 +128,18 @@ def collect_changed(cur_idx: dict, prev_idx: dict, target: dict) -> list[dict]:
     return changed
 
 
+def pinned_variants(target: dict) -> set[str]:
+    """variant_id 타깃이 입력 URL로 고정한 itemId 집합(그 외 타깃은 빈 집합)."""
+    if target.get("id_field") != "variant_id":
+        return set()
+    out = set()
+    for item in target.get("inputs") or []:
+        found = re.search(r"[?&]itemId=(\d+)", str(item.get("url", "")))
+        if found:
+            out.add(found.group(1))
+    return out
+
+
 def build_diff(current: list[dict], previous: list[dict] | None, target: dict, target_name: str,
                current_path: Path, previous_path: Path | None,
                history: list[Path] | None = None) -> dict:
@@ -160,8 +173,16 @@ def build_diff(current: list[dict], previous: list[dict] | None, target: dict, t
     if baseline:
         new_ids = [k for k in cur_idx if k not in known_idx and k not in prev_idx]
 
+    # variant_id 타깃은 추적 구성을 입력 URL의 itemId로 고정한다. 설정에 남아 있는 구성은
+    # 수집에서 빠져도 '삭제'가 아니라 수집 실패다(부분 응답이 이틀 이어지면 멀쩡한 구성이
+    # removed로 가는 오탐 방지). 삭제는 설정에서 그 URL을 뺄 때만 일어난다.
+    pinned = pinned_variants(target)
+
     removed_ids, missing_ids = [], []
     for key in absent_ids:
+        if key in pinned:
+            missing_ids.append(key)
+            continue
         streak = absence_streak(past + [cur_idx], key)
         (removed_ids if streak >= threshold else missing_ids).append(key)
 
