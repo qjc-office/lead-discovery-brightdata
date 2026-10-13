@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -254,7 +255,10 @@ def main(argv: list[str]) -> int:
 
     out_path = Path(args.out) if args.out else Path(args.data_dir) / f"diff_{target_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(diff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # 원자 교체: 쓰다 끊긴 diff가 다음 단계(알림·가격 카드)에 반쯤 쓰인 채 읽히지 않게 한다.
+    tmp_path = out_path.with_name(f".{out_path.name}.{os.getpid()}.tmp")
+    tmp_path.write_text(json.dumps(diff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp_path, out_path)
 
     print(f"[diff] current={cur_path.name} ({diff['current_count']} rows)")
     print(f"[diff] previous={prev_path.name if prev_path else 'NONE (first run, baseline saved)'}"

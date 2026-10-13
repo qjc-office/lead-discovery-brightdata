@@ -14,7 +14,10 @@ Switching from mock to live changes one flag. The request shape is identical.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import csv
+import os
+import tempfile
 import json
 import re
 import sys
@@ -53,11 +56,21 @@ def flatten(record: dict, fields: list[str]) -> dict:
 
 
 def write_csv(rows: list[dict], fields: list[str], path: Path) -> Path:
+    """Write to a per-process temp file, then atomically replace the target.
+    A run killed mid-write, or two runs on the same day, never leave a
+    half-written snapshot behind for diff_checker to pick up."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.stem}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
     return path
 
 
