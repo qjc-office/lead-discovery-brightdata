@@ -123,7 +123,7 @@ def main(argv: list[str]) -> int:
     if not usable:
         print("[fetch] WARNING every record lacked an id, nothing written", file=sys.stderr)
         return 3
-    coverage_rc = check_variant_coverage(target, usable)
+    usable, coverage_rc = check_variant_coverage(target, usable)
     if coverage_rc:
         return coverage_rc
     rows = [flatten(r, fields) for r in usable]
@@ -136,35 +136,51 @@ def main(argv: list[str]) -> int:
     return 0
 
 
-def check_variant_coverage(target: dict, records: list[dict]) -> int:
+def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict], int]:
     """Tracked targets keyed by variant_id pin each input to one itemId. Compare
     what came back against what was asked for.
 
-    Partial results are kept on purpose (downstream marks the missing ones as
-    not collected today), but they are reported. A result that shares no itemId
-    with the inputs is not the data we asked for, so it is refused (rc 4).
+    Returns (records to write, rc). Only requested itemIds are written: extra
+    variants are dropped, and a variant that came back twice is dropped
+    entirely because we cannot tell which row is right. Partial results are kept
+    on purpose (downstream marks the missing ones as not collected today), but
+    they are reported. A result that shares no itemId with the inputs is not the
+    data we asked for, so it is refused (rc 4).
     """
     if target.get("id_field") != "variant_id":
-        return 0
+        return records, 0
     expected = set()
     for item in target.get("inputs") or []:
         found = re.search(r"[?&]itemId=(\d+)", str(item.get("url", "")))
         if found:
             expected.add(found.group(1))
     if not expected:
-        return 0
-    got = [str(r.get("variant_id") or "").strip() for r in records]
-    got_set = set(got)
-    missing = sorted(expected - got_set)
-    extra = sorted(got_set - expected)
-    dupes = sorted({g for g in got if got.count(g) > 1})
-    print(f"[fetch] variant coverage {len(expected & got_set)}/{len(expected)}")
+        return records, 0
+    seen: set[str] = set()
+    dupes: set[str] = set()
+    for record in records:
+        key = str(record.get("variant_id") or "").strip()
+        if key in seen:
+            dupes.add(key)
+        seen.add(key)
+    extra = sorted(seen - expected)
+    kept = [
+        r for r in records
+        if str(r.get("variant_id") or "").strip() in expected
+        and str(r.get("variant_id") or "").strip() not in dupes
+    ]
+    kept_ids = {str(r.get("variant_id")).strip() for r in kept}
+    missing = sorted(expected - kept_ids)
+    print(f"[fetch] variant coverage {len(kept_ids)}/{len(expected)}")
     if missing or extra or dupes:
-        print(f"[fetch] WARNING variant mismatch missing={missing} extra={extra} duplicate={dupes}", file=sys.stderr)
-    if not expected & got_set:
+        print(
+            f"[fetch] WARNING variant mismatch missing={missing} extra(dropped)={extra} duplicate(dropped)={sorted(dupes)}",
+            file=sys.stderr,
+        )
+    if not kept:
         print("[fetch] ERROR no returned variant matches the configured itemIds, nothing written", file=sys.stderr)
-        return 4
-    return 0
+        return [], 4
+    return kept, 0
 
 
 if __name__ == "__main__":
