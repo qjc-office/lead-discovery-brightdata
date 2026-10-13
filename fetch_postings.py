@@ -56,6 +56,11 @@ def flatten(record: dict, fields: list[str]) -> dict:
     return row
 
 
+def read_rows(path: Path) -> list[dict]:
+    with path.open(newline="", encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
 def write_csv(rows: list[dict], fields: list[str], path: Path) -> Path:
     """Write to a per-process temp file, then atomically replace the target.
     A run killed mid-write, or two runs on the same day, never leave a
@@ -165,6 +170,14 @@ def _run(argv: list[str]) -> int:
         return coverage_rc
     rows = [flatten(r, fields) for r in usable]
     out_path = Path(args.out_dir) / f"{target_name}_{stamp}.csv"
+    if id_field == "variant_id" and out_path.exists():
+        # A same-day rerun must not replace a fuller snapshot with a thinner one.
+        kept = {str(r.get("variant_id") or "").strip() for r in read_rows(out_path)}
+        new = {str(r.get("variant_id") or "").strip() for r in rows}
+        if len(new) < len(kept):
+            print(f"[fetch] ERROR today's snapshot already has {len(kept)} variant(s); "
+                  f"this run has {len(new)}, keeping the existing file", file=sys.stderr)
+            return 6
     write_csv(rows, fields, out_path)
 
     print(f"[fetch] snapshot_id={snapshot_id}")
