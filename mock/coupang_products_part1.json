@@ -1,0 +1,50 @@
+[
+  {
+    "_mock_fixture": true,
+    "id": "9000000001",
+    "variant_id": "90000000001",
+    "title": "SYNTHETIC Laptop 14 (config A)",
+    "seller_name": "SYNTHETIC seller",
+    "initial_price": "₩3,290,000",
+    "final_price": "₩3,026,800",
+    "discount": "8",
+    "currency": "KRW",
+    "is_in_stock": true,
+    "rating": 4.8,
+    "reviews": 120,
+    "root_category": "노트북",
+    "url": "https://www.coupang.com/vp/products/9000000001?itemId=90000000001"
+  },
+  {
+    "_mock_fixture": true,
+    "id": "9000000001",
+    "variant_id": "90000000002",
+    "title": "SYNTHETIC Laptop 14 (config B)",
+    "seller_name": "SYNTHETIC seller",
+    "initial_price": "₩4,190,000",
+    "final_price": "₩3,880,990",
+    "discount": "8",
+    "currency": "KRW",
+    "is_in_stock": true,
+    "rating": 4.8,
+    "reviews": 120,
+    "root_category": "노트북",
+    "url": "https://www.coupang.com/vp/products/9000000001?itemId=90000000002"
+  },
+  {
+    "_mock_fixture": true,
+    "id": "9000000002",
+    "variant_id": "90000000003",
+    "title": "SYNTHETIC Desktop mini",
+    "seller_name": "SYNTHETIC seller",
+    "initial_price": "₩1,499,000",
+    "final_price": "₩1,438,000",
+    "discount": "8",
+    "currency": "KRW",
+    "is_in_stock": false,
+    "rating": 4.8,
+    "reviews": 120,
+    "root_category": "노트북",
+    "url": "https://www.coupang.com/vp/products/9000000002?itemId=90000000003"
+  }
+]

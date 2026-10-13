@@ -218,7 +218,7 @@
       "label": "Coupang price tracking (collect by URL)",
       "dataset_id": "gd_mcsxmfqptpufr191p",
       "doc_url": "https://docs.brightdata.com/api-reference/scrapers/e-commerce-apis",
-      "mock_key": "amazon_products",
+      "mock_key": "coupang_products",
       "trigger_params": {
         "include_errors": "true"
       },
