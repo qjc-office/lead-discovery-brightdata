@@ -16,9 +16,14 @@ from __future__ import annotations
 import argparse
 import contextlib
 import csv
-import fcntl
 import os
 import tempfile
+
+try:  # POSIX
+    import fcntl
+except ImportError:  # Windows (python.org installs are supported, see README)
+    fcntl = None
+    import msvcrt
 import json
 import re
 import sys
@@ -108,14 +113,25 @@ def main(argv: list[str]) -> int:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     lock_path = out_dir / f".{target_name}_{stamp}.lock"
-    with open(lock_path, "a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+    with open(lock_path, "a+") as lock:
+        if not _try_lock(lock):
             print(f"[fetch] ERROR another collection for {target_name} {stamp} is running, nothing written",
                   file=sys.stderr)
             return 5
         return _run(argv)
+
+
+def _try_lock(fh) -> bool:
+    """Non-blocking exclusive lock, released when the file is closed."""
+    try:
+        if fcntl is not None:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError:  # BlockingIOError is an OSError
+        return False
+    return True
 
 
 def _run(argv: list[str]) -> int:
@@ -170,13 +186,18 @@ def _run(argv: list[str]) -> int:
         return coverage_rc
     rows = [flatten(r, fields) for r in usable]
     out_path = Path(args.out_dir) / f"{target_name}_{stamp}.csv"
-    if id_field == "variant_id" and out_path.exists():
-        # A same-day rerun must not replace a fuller snapshot with a thinner one.
-        kept = {str(r.get("variant_id") or "").strip() for r in read_rows(out_path)}
-        new = {str(r.get("variant_id") or "").strip() for r in rows}
-        if len(new) < len(kept):
-            print(f"[fetch] ERROR today's snapshot already has {len(kept)} variant(s); "
-                  f"this run has {len(new)}, keeping the existing file", file=sys.stderr)
+    if target_name.endswith("_tracked") and out_path.exists():
+        # Tracked targets collect the same fixed URLs every run, so a same-day
+        # rerun may only replace today's snapshot when it still covers every
+        # product the existing one has. Otherwise prices already collected today
+        # would silently disappear.
+        kept = {str(r.get(id_field) or "").strip() for r in read_rows(out_path)} - {""}
+        new = {str(r.get(id_field) or "").strip() for r in rows} - {""}
+        lost = sorted(kept - new)
+        if lost:
+            print(f"[fetch] ERROR this run lacks {len(lost)} product(s) today's snapshot already has "
+                  f"({', '.join(lost[:5])}{'…' if len(lost) > 5 else ''}); keeping the existing file",
+                  file=sys.stderr)
             return 6
     write_csv(rows, fields, out_path)
 
