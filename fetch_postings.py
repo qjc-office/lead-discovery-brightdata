@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import csv
+import fcntl
 import os
 import tempfile
 import json
@@ -90,6 +91,29 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str]) -> int:
+    """One collection per target/date at a time.
+
+    If a cron run and a manual run overlap, the one that finishes last would
+    replace the other's CSV even when its data is older or partial. Holding a
+    lock for the whole collect→write span makes the second run stop instead.
+    """
+    args = parse_args(argv)
+    target_name, _ = load_target(args.target)
+    stamp = args.date or datetime.now(timezone.utc).strftime("%Y%m%d")
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = out_dir / f".{target_name}_{stamp}.lock"
+    with open(lock_path, "a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"[fetch] ERROR another collection for {target_name} {stamp} is running, nothing written",
+                  file=sys.stderr)
+            return 5
+        return _run(argv)
+
+
+def _run(argv: list[str]) -> int:
     args = parse_args(argv)
     use_mock = not args.live  # mock is the default so the repo runs with no credentials
     target_name, target = load_target(args.target)
