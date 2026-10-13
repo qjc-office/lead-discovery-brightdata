@@ -19,6 +19,8 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -127,6 +129,18 @@ def collect_changed(cur_idx: dict, prev_idx: dict, target: dict) -> list[dict]:
     return changed
 
 
+def pinned_variants(target: dict) -> set[str]:
+    """variant_id 타깃이 입력 URL로 고정한 itemId 집합(그 외 타깃은 빈 집합)."""
+    if target.get("id_field") != "variant_id":
+        return set()
+    out = set()
+    for item in target.get("inputs") or []:
+        found = re.search(r"[?&]itemId=(\d+)", str(item.get("url", "")))
+        if found:
+            out.add(found.group(1))
+    return out
+
+
 def build_diff(current: list[dict], previous: list[dict] | None, target: dict, target_name: str,
                current_path: Path, previous_path: Path | None,
                history: list[Path] | None = None) -> dict:
@@ -160,8 +174,16 @@ def build_diff(current: list[dict], previous: list[dict] | None, target: dict, t
     if baseline:
         new_ids = [k for k in cur_idx if k not in known_idx and k not in prev_idx]
 
+    # variant_id 타깃은 추적 구성을 입력 URL의 itemId로 고정한다. 설정에 남아 있는 구성은
+    # 수집에서 빠져도 '삭제'가 아니라 수집 실패다(부분 응답이 이틀 이어지면 멀쩡한 구성이
+    # removed로 가는 오탐 방지). 삭제는 설정에서 그 URL을 뺄 때만 일어난다.
+    pinned = pinned_variants(target)
+
     removed_ids, missing_ids = [], []
     for key in absent_ids:
+        if key in pinned:
+            missing_ids.append(key)
+            continue
         streak = absence_streak(past + [cur_idx], key)
         (removed_ids if streak >= threshold else missing_ids).append(key)
 
@@ -174,6 +196,10 @@ def build_diff(current: list[dict], previous: list[dict] | None, target: dict, t
         "current_file": str(current_path),
         "previous_file": str(previous_path) if previous_path else None,
         "current_count": len(cur_idx),
+        # 고정 구성 타깃만: 설정이 기대하는 구성 수와 이번에 들어온 수. 부분 수집 스냅샷임을
+        # 후속 단계가 알 수 있게 남긴다(빠진 구성은 missing_items에 있고 removed로 가지 않는다).
+        "expected_count": len(pinned) if pinned else None,
+        "coverage_partial": bool(pinned) and not pinned <= set(cur_idx),
         "previous_count": len(prev_idx),
         "new_count": len(new_ids),
         "removed_count": len(removed_ids),
@@ -229,7 +255,10 @@ def main(argv: list[str]) -> int:
 
     out_path = Path(args.out) if args.out else Path(args.data_dir) / f"diff_{target_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(diff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # 원자 교체: 쓰다 끊긴 diff가 다음 단계(알림·가격 카드)에 반쯤 쓰인 채 읽히지 않게 한다.
+    tmp_path = out_path.with_name(f".{out_path.name}.{os.getpid()}.tmp")
+    tmp_path.write_text(json.dumps(diff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp_path, out_path)
 
     print(f"[diff] current={cur_path.name} ({diff['current_count']} rows)")
     print(f"[diff] previous={prev_path.name if prev_path else 'NONE (first run, baseline saved)'}"
@@ -246,8 +275,10 @@ def main(argv: list[str]) -> int:
 
     if not diff["baseline_present"]:
         return 0
+    # 부분 수집은 변동이 없어도 알린다(같은 일부만 연속으로 들어오면 missing도 0이 된다).
     touched = (diff["new_count"] or diff["removed_count"]
-               or diff["changed_count"] or diff["missing_count"])
+               or diff["changed_count"] or diff["missing_count"]
+               or diff.get("coverage_partial"))
     return 0 if touched else 1
 
 

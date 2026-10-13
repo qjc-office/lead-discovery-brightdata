@@ -85,6 +85,9 @@ def build_payload(diff: dict, mock: bool) -> dict:
         ("not collected", diff.get("missing_count", 0)),
     ]
     parts = [f"{name}: {n}" for name, n in counts if n]
+    if diff.get("coverage_partial"):
+        # 고정 구성 중 일부만 들어온 수집. 처음 보는 구성이 빠지면 missing에도 안 잡히므로 따로 알린다.
+        parts.insert(0, f"partial collection: {diff.get('current_count', 0)}/{diff.get('expected_count', 0)}")
     if not parts:
         header = "No changes"
     elif parts == [f"New items: {diff.get('new_count', 0)}"]:
@@ -156,7 +159,8 @@ def main(argv: list[str]) -> int:
     print(f"[notify] source={diff_path}")
 
     touched = (diff.get("new_count") or diff.get("removed_count")
-               or diff.get("changed_count") or diff.get("missing_count"))
+               or diff.get("changed_count") or diff.get("missing_count")
+               or diff.get("coverage_partial"))
     if not touched and not args.always:
         print("[notify] no changes, nothing to send")
         return 1

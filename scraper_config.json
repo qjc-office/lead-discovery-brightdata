@@ -87,7 +87,7 @@
       ]
     },
     "amazon_tracked": {
-      "_note": "Price tracking target. Unlike amazon_products (discover by keyword), this collects the SAME product URLs every run, which is what makes day-over-day comparison possible. Add or remove entries in 'inputs' to track your own products.",
+      "_note": "Price tracking target. Unlike amazon_products (discover by keyword), this collects the SAME product URLs every run, which is what makes day-over-day comparison possible. Currently tracks Apple Mac base configurations (MacBook Air/Pro, Mac mini, Mac Studio) for the price-comparison digest. Add or remove entries in 'inputs' to track your own products.",
       "label": "Amazon price tracking (collect by URL)",
       "dataset_id": "gd_l7q7dkf244hwjntr0",
       "doc_url": "https://docs.brightdata.com/api-reference/scrapers/e-commerce-apis/amazon-products",
@@ -97,46 +97,37 @@
       },
       "inputs": [
         {
-          "url": "https://www.amazon.com/dp/B09B8V1LZ3"
+          "url": "https://www.amazon.com/dp/B0GR19X8DC"
         },
         {
-          "url": "https://www.amazon.com/dp/B0CHX3QBCH"
+          "url": "https://www.amazon.com/dp/B0GR1GC1D6"
         },
         {
-          "url": "https://www.amazon.com/dp/B0HBWW3958"
+          "url": "https://www.amazon.com/dp/B0FWD8WBSW"
         },
         {
-          "url": "https://www.amazon.com/dp/B0HDB6MTYJ"
+          "url": "https://www.amazon.com/dp/B0GR17YNHL"
         },
         {
-          "url": "https://www.amazon.com/dp/B0HCXW6CDR"
+          "url": "https://www.amazon.com/dp/B0GR19XLMB"
         },
         {
-          "url": "https://www.amazon.com/dp/B0BTYCRJSS"
+          "url": "https://www.amazon.com/dp/B0GR1DS3YP"
         },
         {
-          "url": "https://www.amazon.com/dp/B0CRTR3PMF"
+          "url": "https://www.amazon.com/dp/B0GR1F53WV"
         },
         {
-          "url": "https://www.amazon.com/dp/B0CRTYZG5C"
+          "url": "https://www.amazon.com/dp/B0GR1G6V6H"
         },
         {
-          "url": "https://www.amazon.com/dp/B0CZRX56CV"
+          "url": "https://www.amazon.com/dp/B0HGGJZ92H"
         },
         {
-          "url": "https://www.amazon.com/dp/B08LSJ4RHH"
+          "url": "https://www.amazon.com/dp/B0HGGHNQY6"
         },
         {
-          "url": "https://www.amazon.com/dp/B0CS68QV83"
-        },
-        {
-          "url": "https://www.amazon.com/dp/B0DWMX5TXV"
-        },
-        {
-          "url": "https://www.amazon.com/dp/B0FNRKLSMM"
-        },
-        {
-          "url": "https://www.amazon.com/dp/B07WVC9KSG"
+          "url": "https://www.amazon.com/dp/B0HGKSQMX6"
         }
       ],
       "id_field": "asin",
@@ -163,7 +154,7 @@
       ]
     },
     "danawa_tracked": {
-      "_note": "Korean price tracking via a Scraper Studio collector. Unlike the Amazon targets (dataset_id + /datasets/v3), this one uses collector_id + /dca. Same URLs every run.",
+      "_note": "Korean price tracking via a Scraper Studio collector. Unlike the Amazon targets (dataset_id + /datasets/v3), this one uses collector_id + /dca. Same URLs every run. Tracks Apple Mac base configurations (changed 2026-10-13).",
       "label": "Danawa price tracking (collect by URL)",
       "collector_id": "c_mubbrin612g63hwm8n",
       "doc_url": "https://docs.brightdata.com/scraping-automation/easy-scraper/faqs",
@@ -171,70 +162,37 @@
       "trigger_params": {},
       "inputs": [
         {
-          "url": "https://prod.danawa.com/info/?pcode=94026476"
+          "url": "https://prod.danawa.com/info/?pcode=106754423"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=108423050"
+          "url": "https://prod.danawa.com/info/?pcode=106755140"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=61437527"
+          "url": "https://prod.danawa.com/info/?pcode=99126182"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=90642845"
+          "url": "https://prod.danawa.com/info/?pcode=106755515"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=70003601"
+          "url": "https://prod.danawa.com/info/?pcode=106755632"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=13363190"
+          "url": "https://prod.danawa.com/info/?pcode=106756094"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=122645087"
+          "url": "https://prod.danawa.com/info/?pcode=106756199"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=63466976"
+          "url": "https://prod.danawa.com/info/?pcode=106757549"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=70152575"
+          "url": "https://prod.danawa.com/info/?pcode=124045636"
         },
         {
-          "url": "https://prod.danawa.com/info/?pcode=70152545"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=70152629"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=70251569"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=70251512"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=70251404"
+          "url": "https://prod.danawa.com/info/?pcode=124045600"
         },
         {
           "url": "https://prod.danawa.com/info/?pcode=124045694"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=72715829"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=72715832"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=72715874"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=33167732"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=33195506"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=33188396"
-        },
-        {
-          "url": "https://prod.danawa.com/info/?pcode=33154706"
         }
       ],
       "id_field": "product_code",
@@ -256,56 +214,50 @@
       ]
     },
     "coupang_tracked": {
-      "_note": "Korean marketplace price tracking via Bright Data's official Coupang scraper. Coupang's robots.txt itself returns 403, so we do not crawl it directly and use Bright Data's Coupang scraper product instead. Two groups: Apple hardware (added 2026-09-22) and crested gecko keeping supplies (added 2026-09-23). Seller PII fields (contact/email/address/rep_name) are intentionally excluded.",
+      "_note": "Korean marketplace price tracking via Bright Data's official Coupang scraper. Coupang's robots.txt itself returns 403, so we do not crawl it directly and use Bright Data's Coupang scraper product instead. Tracks Apple Mac base configurations (changed 2026-10-13). One Coupang product page bundles several configurations, so each input pins the configuration with itemId and vendorItemId, and rows are keyed by variant_id (= itemId) instead of the shared product id. Seller PII fields (contact/email/address/rep_name) are intentionally excluded.",
       "label": "Coupang price tracking (collect by URL)",
       "dataset_id": "gd_mcsxmfqptpufr191p",
       "doc_url": "https://docs.brightdata.com/api-reference/scrapers/e-commerce-apis",
-      "mock_key": "amazon_products",
+      "mock_key": "coupang_products",
       "trigger_params": {
         "include_errors": "true"
       },
       "inputs": [
         {
-          "url": "https://www.coupang.com/vp/products/8540912208"
+          "url": "https://www.coupang.com/vp/products/9410641464?itemId=27961674147&vendorItemId=94919713475"
         },
         {
-          "url": "https://www.coupang.com/vp/products/7122226122"
+          "url": "https://www.coupang.com/vp/products/9410641499?itemId=27961674327&vendorItemId=94919713456"
         },
         {
-          "url": "https://www.coupang.com/vp/products/8443849352"
+          "url": "https://www.coupang.com/vp/products/9140128274?itemId=26906195808&vendorItemId=93875613386"
         },
         {
-          "url": "https://www.coupang.com/vp/products/6411108925"
+          "url": "https://www.coupang.com/vp/products/9140128274?itemId=27961799020&vendorItemId=94919837749"
         },
         {
-          "url": "https://www.coupang.com/vp/products/8640310188"
+          "url": "https://www.coupang.com/vp/products/9140128274?itemId=27961799022&vendorItemId=94919837748"
         },
         {
-          "url": "https://www.coupang.com/vp/products/8443803244"
+          "url": "https://www.coupang.com/vp/products/9410700446?itemId=27961799434&vendorItemId=94919837914"
         },
         {
-          "url": "https://www.coupang.com/vp/products/8640310192"
+          "url": "https://www.coupang.com/vp/products/9410700446?itemId=27961799441&vendorItemId=94919837918"
         },
         {
-          "url": "https://www.coupang.com/vp/products/8443803255"
+          "url": "https://www.coupang.com/vp/products/9410700446?itemId=27961799443&vendorItemId=94919837919"
         },
         {
-          "url": "https://www.coupang.com/vp/products/7623423396"
+          "url": "https://www.coupang.com/vp/products/9708660194?itemId=29046785336&vendorItemId=95973723957"
         },
         {
-          "url": "https://www.coupang.com/vp/products/9206809407"
+          "url": "https://www.coupang.com/vp/products/9708660194?itemId=29046785339&vendorItemId=95973723956"
         },
         {
-          "url": "https://www.coupang.com/vp/products/8480924116"
-        },
-        {
-          "url": "https://www.coupang.com/vp/products/9606324780"
-        },
-        {
-          "url": "https://www.coupang.com/vp/products/7356388382"
+          "url": "https://www.coupang.com/vp/products/9751795435?itemId=29046785265&vendorItemId=95973723798"
         }
       ],
-      "id_field": "id",
+      "id_field": "variant_id",
       "title_field": "title",
       "subtitle_field": "seller_name",
       "url_field": "url",
@@ -316,6 +268,7 @@
         "reviews"
       ],
       "csv_fields": [
+        "variant_id",
         "id",
         "title",
         "seller_name",
