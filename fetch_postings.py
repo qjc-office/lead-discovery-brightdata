@@ -184,6 +184,17 @@ def _run(argv: list[str]) -> int:
     usable, coverage_rc = check_variant_coverage(target, usable)
     if coverage_rc:
         return coverage_rc
+    if target_name.endswith("_tracked"):
+        # A product that came back twice cannot be trusted either way (and the
+        # diff would keep only the last row), so drop every copy of it.
+        ids = [str(r.get(id_field) or "").strip() for r in usable]
+        dupes = sorted({i for i in ids if ids.count(i) > 1})
+        if dupes:
+            print(f"[fetch] WARNING duplicate {id_field} dropped: {dupes}", file=sys.stderr)
+            usable = [r for r in usable if str(r.get(id_field) or "").strip() not in dupes]
+            if not usable:
+                print("[fetch] ERROR every record was a duplicate, nothing written", file=sys.stderr)
+                return 4
     rows = [flatten(r, fields) for r in usable]
     out_path = Path(args.out_dir) / f"{target_name}_{stamp}.csv"
     if target_name.endswith("_tracked") and out_path.exists():
@@ -191,7 +202,12 @@ def _run(argv: list[str]) -> int:
         # rerun may only replace today's snapshot when it still covers every
         # product the existing one has. Otherwise prices already collected today
         # would silently disappear.
-        kept = {str(r.get(id_field) or "").strip() for r in read_rows(out_path)} - {""}
+        existing = [str(r.get(id_field) or "").strip() for r in read_rows(out_path)]
+        if len(existing) != len(set(existing)) or "" in existing:
+            print(f"[fetch] ERROR today's snapshot {out_path.name} has blank or duplicate ids; "
+                  "fix or remove it before rerunning", file=sys.stderr)
+            return 6
+        kept = set(existing)
         new = {str(r.get(id_field) or "").strip() for r in rows} - {""}
         lost = sorted(kept - new)
         if lost:
