@@ -275,8 +275,10 @@ def main(argv: list[str]) -> int:
 
     if not diff["baseline_present"]:
         return 0
+    # 부분 수집은 변동이 없어도 알린다(같은 일부만 연속으로 들어오면 missing도 0이 된다).
     touched = (diff["new_count"] or diff["removed_count"]
-               or diff["changed_count"] or diff["missing_count"])
+               or diff["changed_count"] or diff["missing_count"]
+               or diff.get("coverage_partial"))
     return 0 if touched else 1
 
 
