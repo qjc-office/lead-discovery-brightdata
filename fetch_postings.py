@@ -154,11 +154,13 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
     for item in target.get("inputs") or []:
         url = str(item.get("url", ""))
         found = re.search(r"[?&]itemId=(\d+)", url)
+        vendor = re.search(r"[?&]vendorItemId=(\d+)", url)
+        if found and not vendor:
+            print(f"[fetch] ERROR input pins itemId without vendorItemId: {url}", file=sys.stderr)
+            return [], 4
         if found:
             expected.add(found.group(1))
-            vendor = re.search(r"[?&]vendorItemId=(\d+)", url)
-            if vendor:
-                vendor_of[found.group(1)] = vendor.group(1)
+            vendor_of[found.group(1)] = vendor.group(1)
     if not expected:
         # A variant_id-keyed target whose inputs carry no itemId would accept any
         # configuration that comes back. That is a config error, not a result.
@@ -180,14 +182,14 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
     def vendor_ok(record: dict) -> bool:
         key = str(record.get("variant_id") or "").strip()
         want = vendor_of.get(key)
-        if not want:
-            return True
         source = record.get("input") if isinstance(record.get("input"), dict) else {}
+        seen_vendors = set()
         for url in (str(record.get("url") or ""), str(source.get("url") or "")):
-            got = re.search(r"[?&]vendorItemId=(\d+)", url)
-            if got and got.group(1) != want:
-                wrong_vendor.append(key)
-                return False
+            seen_vendors.update(re.findall(r"[?&]vendorItemId=(\d+)", url))
+        # 응답 쪽 vendorItemId가 정확히 하나이고 기대값과 같을 때만 보존한다(없거나 여럿이면 거부).
+        if seen_vendors != {want}:
+            wrong_vendor.append(key)
+            return False
         return True
 
     kept = [
