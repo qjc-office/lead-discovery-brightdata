@@ -180,7 +180,7 @@ Amazon 쪽은 `dataset_id`가 채워져 있어 키만 넣으면 바로 돕니다
 | 타깃 | 방식 | 키워드 검색 | ID 필드 |
 |---|---|---|---|
 | `amazon_tracked` | Bright Data 공식 스크래퍼 (`gd_l7q7dkf244hwjntr0`) | 됨 | `asin` |
-| `coupang_tracked` | Bright Data 공식 스크래퍼 (`gd_mcsxmfqptpufr191p`) | **안 됨.** 카테고리·브랜드·판매자 URL 또는 상품 URL만 | `id` |
+| `coupang_tracked` | Bright Data 공식 스크래퍼 (`gd_mcsxmfqptpufr191p`) | **안 됨.** 카테고리·브랜드·판매자 URL 또는 상품 URL만 | `variant_id` (상품 하나에 구성이 여러 개라 URL에 `itemId`를 붙여 구성을 고정한다) |
 | `danawa_tracked` | Scraper Studio로 직접 만든 수집기 (`collector_id`) | 해당 없음 | `product_code` |
 
 자기 상품으로 바꾸려면 각 타깃의 `inputs`에 있는 상품 URL만 교체하면 됩니다.
