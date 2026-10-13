@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -122,6 +123,9 @@ def main(argv: list[str]) -> int:
     if not usable:
         print("[fetch] WARNING every record lacked an id, nothing written", file=sys.stderr)
         return 3
+    coverage_rc = check_variant_coverage(target, usable)
+    if coverage_rc:
+        return coverage_rc
     rows = [flatten(r, fields) for r in usable]
     out_path = Path(args.out_dir) / f"{target_name}_{stamp}.csv"
     write_csv(rows, fields, out_path)
@@ -129,6 +133,37 @@ def main(argv: list[str]) -> int:
     print(f"[fetch] snapshot_id={snapshot_id}")
     print(f"[fetch] wrote {len(rows)} row(s) -> {out_path}")
     print(f"[fetch] sample id(s): {', '.join(str(r.get(target['id_field'])) for r in rows[:3])}")
+    return 0
+
+
+def check_variant_coverage(target: dict, records: list[dict]) -> int:
+    """Tracked targets keyed by variant_id pin each input to one itemId. Compare
+    what came back against what was asked for.
+
+    Partial results are kept on purpose (downstream marks the missing ones as
+    not collected today), but they are reported. A result that shares no itemId
+    with the inputs is not the data we asked for, so it is refused (rc 4).
+    """
+    if target.get("id_field") != "variant_id":
+        return 0
+    expected = set()
+    for item in target.get("inputs") or []:
+        found = re.search(r"[?&]itemId=(\d+)", str(item.get("url", "")))
+        if found:
+            expected.add(found.group(1))
+    if not expected:
+        return 0
+    got = [str(r.get("variant_id") or "").strip() for r in records]
+    got_set = set(got)
+    missing = sorted(expected - got_set)
+    extra = sorted(got_set - expected)
+    dupes = sorted({g for g in got if got.count(g) > 1})
+    print(f"[fetch] variant coverage {len(expected & got_set)}/{len(expected)}")
+    if missing or extra or dupes:
+        print(f"[fetch] WARNING variant mismatch missing={missing} extra={extra} duplicate={dupes}", file=sys.stderr)
+    if not expected & got_set:
+        print("[fetch] ERROR no returned variant matches the configured itemIds, nothing written", file=sys.stderr)
+        return 4
     return 0
 
 
