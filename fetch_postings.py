@@ -155,6 +155,10 @@ def check_variant_coverage(target: dict, records: list[dict]) -> tuple[list[dict
         url = str(item.get("url", ""))
         found = re.search(r"[?&]itemId=(\d+)", url)
         vendor = re.search(r"[?&]vendorItemId=(\d+)", url)
+        if not found:
+            # One unpinned URL in a variant target would be silently ignored below.
+            print(f"[fetch] ERROR variant_id target input has no itemId: {url}", file=sys.stderr)
+            return [], 4
         if found and not vendor:
             print(f"[fetch] ERROR input pins itemId without vendorItemId: {url}", file=sys.stderr)
             return [], 4

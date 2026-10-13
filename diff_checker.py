@@ -195,6 +195,10 @@ def build_diff(current: list[dict], previous: list[dict] | None, target: dict, t
         "current_file": str(current_path),
         "previous_file": str(previous_path) if previous_path else None,
         "current_count": len(cur_idx),
+        # 고정 구성 타깃만: 설정이 기대하는 구성 수와 이번에 들어온 수. 부분 수집 스냅샷임을
+        # 후속 단계가 알 수 있게 남긴다(빠진 구성은 missing_items에 있고 removed로 가지 않는다).
+        "expected_count": len(pinned) if pinned else None,
+        "coverage_partial": bool(pinned) and not pinned <= set(cur_idx),
         "previous_count": len(prev_idx),
         "new_count": len(new_ids),
         "removed_count": len(removed_ids),
